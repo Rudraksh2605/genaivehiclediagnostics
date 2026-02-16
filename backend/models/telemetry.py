@@ -32,14 +32,39 @@ class BatteryHealth(BaseModel):
     health_status: str = Field(default="Good", description="Overall battery health status")
 
 
+class DrivetrainStatus(BaseModel):
+    """Drivetrain and control inputs."""
+    throttle_position: float = Field(default=0.0, ge=0, le=100, description="Throttle position in %")
+    brake_position: float = Field(default=0.0, ge=0, le=100, description="Brake pedal position in %")
+    gear_position: str = Field(default="P", description="Gear: P, R, N, D, 1, 2, 3")
+    steering_angle: float = Field(default=0.0, ge=-540, le=540, description="Steering wheel angle in degrees")
+
+
+class EVStatus(BaseModel):
+    """EV-specific status information."""
+    ev_range: float = Field(default=350.0, ge=0, le=800, description="Estimated EV range in km")
+    charging: bool = Field(default=False, description="Whether the vehicle is charging")
+    regen_braking: bool = Field(default=False, description="Whether regen braking is active")
+
+
+class GPSLocation(BaseModel):
+    """GPS coordinates."""
+    latitude: float = Field(default=0.0, description="Latitude")
+    longitude: float = Field(default=0.0, description="Longitude")
+
+
 class VehicleTelemetry(BaseModel):
     """Complete vehicle telemetry data."""
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     speed: float = Field(default=0.0, ge=0, le=200, description="Vehicle speed in km/h")
     battery: BatteryHealth = Field(default_factory=BatteryHealth)
     tires: TireStatus = Field(default_factory=TireStatus)
+    drivetrain: DrivetrainStatus = Field(default_factory=DrivetrainStatus)
+    ev_status: EVStatus = Field(default_factory=EVStatus)
+    gps: GPSLocation = Field(default_factory=GPSLocation)
     odometer: float = Field(default=0.0, ge=0, description="Total distance in km")
     engine_status: str = Field(default="running", description="Engine/motor status")
+    vehicle_variant: str = Field(default="EV", description="Vehicle type: ICE, Hybrid, EV")
 
 
 class AlertModel(BaseModel):

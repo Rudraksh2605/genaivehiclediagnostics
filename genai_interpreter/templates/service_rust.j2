@@ -1,0 +1,113 @@
+/// Auto-generated Rust SoA Service for {{ service_name | title }}.
+/// Generated from requirement: "{{ requirement }}"
+/// Signals: {{ signals | join(', ') }}
+
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+// ── Data Structures ─────────────────────────────────────────────────────────
+{% for signal in signals %}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct {{ signal | title | replace('_', '') }}Data {
+    pub value: f64,
+    pub unit: String,
+    pub timestamp_ms: u64,
+    pub status: String,
+}
+
+impl Default for {{ signal | title | replace('_', '') }}Data {
+    fn default() -> Self {
+        Self {
+            value: 0.0,
+            unit: "{{ units.get(signal, 'unit') }}".to_string(),
+            timestamp_ms: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64,
+            status: "normal".to_string(),
+        }
+    }
+}
+{% endfor %}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct {{ service_name | title | replace('_', '') }}Telemetry {
+{% for signal in signals %}
+    pub {{ signal }}: {{ signal | title | replace('_', '') }}Data,
+{% endfor %}
+    pub timestamp_ms: u64,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AlertSeverity {
+    Info,
+    Warning,
+    Critical,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Alert {
+    pub alert_type: String,
+    pub severity: AlertSeverity,
+    pub message: String,
+    pub signal_id: String,
+    pub value: f64,
+    pub timestamp_ms: u64,
+}
+
+
+// ── Service Trait ───────────────────────────────────────────────────────────
+
+pub trait {{ service_name | title | replace('_', '') }}Service: Send + Sync {
+    fn get_latest_telemetry(&self) -> {{ service_name | title | replace('_', '') }}Telemetry;
+{% for signal in signals %}
+    fn get_{{ signal }}(&self) -> {{ signal | title | replace('_', '') }}Data;
+{% endfor %}
+    fn get_alerts(&self, limit: usize) -> Vec<Alert>;
+    fn update_telemetry(&self, telemetry: {{ service_name | title | replace('_', '') }}Telemetry);
+}
+
+
+// ── Concrete Implementation ─────────────────────────────────────────────────
+
+pub struct {{ service_name | title | replace('_', '') }}ServiceImpl {
+    latest: Arc<Mutex<{{ service_name | title | replace('_', '') }}Telemetry>>,
+    alerts: Arc<Mutex<Vec<Alert>>>,
+}
+
+impl {{ service_name | title | replace('_', '') }}ServiceImpl {
+    pub fn new() -> Self {
+        Self {
+            latest: Arc::new(Mutex::new({{ service_name | title | replace('_', '') }}Telemetry::default())),
+            alerts: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+impl {{ service_name | title | replace('_', '') }}Service for {{ service_name | title | replace('_', '') }}ServiceImpl {
+    fn get_latest_telemetry(&self) -> {{ service_name | title | replace('_', '') }}Telemetry {
+        self.latest.lock().unwrap().clone()
+    }
+
+{% for signal in signals %}
+    fn get_{{ signal }}(&self) -> {{ signal | title | replace('_', '') }}Data {
+        self.latest.lock().unwrap().{{ signal }}.clone()
+    }
+
+{% endfor %}
+    fn get_alerts(&self, limit: usize) -> Vec<Alert> {
+        let alerts = self.alerts.lock().unwrap();
+        let start = if alerts.len() > limit { alerts.len() - limit } else { 0 };
+        alerts[start..].to_vec()
+    }
+
+    fn update_telemetry(&self, telemetry: {{ service_name | title | replace('_', '') }}Telemetry) {
+        let mut latest = self.latest.lock().unwrap();
+        *latest = telemetry;
+    }
+}

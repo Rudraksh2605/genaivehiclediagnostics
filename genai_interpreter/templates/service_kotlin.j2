@@ -1,0 +1,56 @@
+/**
+ * Auto-generated Kotlin data models and Retrofit API for {{ service_name | title }}.
+ * Generated from requirement: "{{ requirement }}"
+ * Signals: {{ signals | join(', ') }}
+ */
+package com.vehiclediag.app.generated
+
+import retrofit2.http.GET
+import retrofit2.http.Query
+
+// ── Data Models ─────────────────────────────────────────────────────────────
+{% for signal in signals %}
+
+data class {{ signal | title | replace('_', '') }}Data(
+    val value: Float = 0f,
+    val unit: String = "{{ units.get(signal, 'unit') }}",
+    val timestamp: String = "",
+    val status: String = "normal"
+)
+{% endfor %}
+
+data class {{ service_name | title | replace('_', '') }}Telemetry(
+    val timestamp: String = "",
+{% for signal in signals %}
+    val {{ signal }}: {{ signal | title | replace('_', '') }}Data = {{ signal | title | replace('_', '') }}Data(){{ "," if not loop.last else "" }}
+{% endfor %}
+)
+
+data class AlertData(
+    val id: String = "",
+    val alertType: String = "",
+    val severity: String = "info",
+    val message: String = "",
+    val signal: String = "",
+    val value: Float = 0f,
+    val threshold: String = "",
+    val timestamp: String = "",
+    val acknowledged: Boolean = false
+)
+
+
+// ── Retrofit API Interface ──────────────────────────────────────────────────
+
+interface {{ service_name | title | replace('_', '') }}ApiService {
+
+    @GET("{{ service_name | replace('_', '-') }}/all")
+    suspend fun getAllTelemetry(): {{ service_name | title | replace('_', '') }}Telemetry
+
+{% for signal in signals %}
+    @GET("{{ service_name | replace('_', '-') }}/{{ signal | replace('_', '-') }}")
+    suspend fun get{{ signal | title | replace('_', '') }}(): {{ signal | title | replace('_', '') }}Data
+
+{% endfor %}
+    @GET("{{ service_name | replace('_', '-') }}/alerts")
+    suspend fun getAlerts(@Query("limit") limit: Int = 50): List<AlertData>
+}

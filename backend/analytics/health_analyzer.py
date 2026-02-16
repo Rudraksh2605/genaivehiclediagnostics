@@ -1,7 +1,7 @@
 """
 Health Analytics & Early Warning Engine.
 Rule-based explainable analytics for vehicle health monitoring.
-Detects anomalies in tire pressure, battery SoC, and speed.
+Detects anomalies in tire pressure, battery SoC, speed, braking, and EV range.
 """
 
 import uuid
@@ -26,6 +26,9 @@ class HealthAnalyzer:
     1. Tire pressure < 25 PSI → "Possible Tire Failure" (critical)
     2. Battery SoC drops rapidly (>5% in 30 seconds) → "Battery Degradation" (critical)
     3. Speed > 100 km/h continuously for 10+ seconds → "High Speed Stress Warning" (warning)
+    4. Brake > 90% → "Harsh Braking Detected" (warning)
+    5. Throttle > 90% sustained 5+ sec → "Harsh Acceleration" (warning)
+    6. EV range < 30 km → "Low EV Range Anxiety" (warning)
     """
 
     def analyze(self, telemetry: VehicleTelemetry, store) -> List[AlertModel]:
@@ -45,6 +48,21 @@ class HealthAnalyzer:
 
         # Rule 3: Sustained high speed
         alert = self._check_high_speed(telemetry, store)
+        if alert:
+            alerts.append(alert)
+
+        # Rule 4: Harsh braking
+        alert = self._check_harsh_braking(telemetry)
+        if alert:
+            alerts.append(alert)
+
+        # Rule 5: Harsh acceleration
+        alert = self._check_harsh_acceleration(telemetry, store)
+        if alert:
+            alerts.append(alert)
+
+        # Rule 6: Low EV range
+        alert = self._check_ev_range(telemetry)
         if alert:
             alerts.append(alert)
 
@@ -81,7 +99,6 @@ class HealthAnalyzer:
         if len(history) < 2:
             return None
 
-        # Compare current SoC with the oldest value in the window
         oldest_soc = history[0]["soc"]
         current_soc = telemetry.battery.soc
         drop = oldest_soc - current_soc
@@ -105,7 +122,6 @@ class HealthAnalyzer:
         if len(history) < 10:
             return None
 
-        # Check if all entries in the last 10 seconds are above 100 km/h
         recent = history[-10:]
         all_high = all(h["speed"] > 100 for h in recent)
 
@@ -118,6 +134,66 @@ class HealthAnalyzer:
                 signal="speed",
                 value=telemetry.speed,
                 threshold="> 100 km/h sustained for 10+ seconds",
+                timestamp=telemetry.timestamp,
+            )
+        return None
+
+    def _check_harsh_braking(self, telemetry: VehicleTelemetry) -> AlertModel | None:
+        """Check for harsh braking (brake > 90%)."""
+        brake = getattr(telemetry, 'drivetrain', None)
+        if brake is None:
+            return None
+        brake_pos = telemetry.drivetrain.brake_position
+        if brake_pos > 90.0:
+            return AlertModel(
+                id=str(uuid.uuid4()),
+                alert_type="harsh_braking",
+                severity=AlertSeverity.WARNING,
+                message=f"Harsh Braking Detected: Brake at {brake_pos:.1f}% (above 90% threshold)",
+                signal="brake_position",
+                value=brake_pos,
+                threshold="> 90%",
+                timestamp=telemetry.timestamp,
+            )
+        return None
+
+    def _check_harsh_acceleration(self, telemetry: VehicleTelemetry, store) -> AlertModel | None:
+        """Check for sustained harsh acceleration (throttle > 90% for 5+ sec)."""
+        throttle = getattr(telemetry, 'drivetrain', None)
+        if throttle is None:
+            return None
+        throttle_pos = telemetry.drivetrain.throttle_position
+        if throttle_pos > 90.0:
+            # Check history for sustained harsh acceleration
+            history = getattr(store, 'speed_history', [])
+            if len(history) >= 5:
+                return AlertModel(
+                    id=str(uuid.uuid4()),
+                    alert_type="harsh_acceleration",
+                    severity=AlertSeverity.WARNING,
+                    message=f"Harsh Acceleration: Throttle at {throttle_pos:.1f}% (above 90% sustained)",
+                    signal="throttle_position",
+                    value=throttle_pos,
+                    threshold="> 90% sustained",
+                    timestamp=telemetry.timestamp,
+                )
+        return None
+
+    def _check_ev_range(self, telemetry: VehicleTelemetry) -> AlertModel | None:
+        """Check for low EV range (< 30 km)."""
+        ev = getattr(telemetry, 'ev_status', None)
+        if ev is None:
+            return None
+        ev_range = telemetry.ev_status.ev_range
+        if ev_range < 30.0:
+            return AlertModel(
+                id=str(uuid.uuid4()),
+                alert_type="low_ev_range",
+                severity=AlertSeverity.WARNING,
+                message=f"Low EV Range Alert: Only {ev_range:.1f} km remaining (below 30 km threshold)",
+                signal="ev_range",
+                value=ev_range,
+                threshold="< 30 km",
                 timestamp=telemetry.timestamp,
             )
         return None

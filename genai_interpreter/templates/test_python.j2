@@ -1,0 +1,80 @@
+"""
+Auto-generated test suite for {{ service_name | title }} service.
+Generated from requirement: "{{ requirement }}"
+Tests cover: data models, API endpoints, and alert rules.
+"""
+
+import pytest
+from fastapi.testclient import TestClient
+
+
+class Test{{ service_name | title | replace('_', '') }}Models:
+    """Tests for {{ service_name }} data models."""
+{% for signal in signals %}
+
+    def test_{{ signal }}_data_model_defaults(self):
+        """{{ signal | title | replace('_', ' ') }} data model initializes with defaults."""
+        from generated.{{ service_name }}_service import {{ signal | title | replace('_', '') }}Data
+        data = {{ signal | title | replace('_', '') }}Data()
+        assert data.value == 0.0
+        assert data.unit == "{{ units.get(signal, 'unit') }}"
+        assert data.status == "normal"
+{% endfor %}
+
+    def test_telemetry_snapshot_structure(self):
+        """Combined telemetry model contains all signals."""
+        from generated.{{ service_name }}_service import {{ service_name | title | replace('_', '') }}Telemetry
+        telemetry = {{ service_name | title | replace('_', '') }}Telemetry()
+{% for signal in signals %}
+        assert hasattr(telemetry, "{{ signal }}")
+{% endfor %}
+
+
+class Test{{ service_name | title | replace('_', '') }}Endpoints:
+    """Integration tests for {{ service_name }} API endpoints."""
+
+    def test_get_all_telemetry(self, client):
+        response = client.get("/{{ service_name | replace('_', '-') }}/all")
+        assert response.status_code == 200
+        data = response.json()
+{% for signal in signals %}
+        assert "{{ signal }}" in data
+{% endfor %}
+{% for signal in signals %}
+
+    def test_get_{{ signal }}(self, client):
+        response = client.get("/{{ service_name | replace('_', '-') }}/{{ signal | replace('_', '-') }}")
+        assert response.status_code == 200
+        data = response.json()
+        assert "value" in data
+        assert "unit" in data
+{% endfor %}
+
+    def test_get_alerts_empty(self, client):
+        response = client.get("/{{ service_name | replace('_', '-') }}/alerts")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_alerts_with_limit(self, client):
+        response = client.get("/{{ service_name | replace('_', '-') }}/alerts?limit=5")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) <= 5
+
+
+{% for signal in signals %}
+class Test{{ signal | title | replace('_', '') }}Analytics:
+    """Analytics rule tests for {{ signal }}."""
+
+    def test_{{ signal }}_normal_range_no_alert(self):
+        """No alert generated when {{ signal }} is in normal range."""
+        # Placeholder: implement concrete range checks
+        pass
+
+    def test_{{ signal }}_out_of_range_generates_alert(self):
+        """Alert generated when {{ signal }} exceeds thresholds."""
+        # Placeholder: implement threshold-based alert check
+        pass
+
+{% endfor %}

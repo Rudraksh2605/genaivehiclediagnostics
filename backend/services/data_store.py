@@ -56,6 +56,9 @@ class DataStore:
         # Historical speed values for sustained-speed detection
         self.speed_history: List[dict] = []
 
+        # Historical tire pressure for wear detection
+        self.tire_history: List[dict] = []
+
         # Loaded signal configuration
         self.signal_configs: List[SignalConfig] = []
 
@@ -130,6 +133,19 @@ class DataStore:
             h for h in self.speed_history if h["timestamp"] > speed_cutoff
         ]
 
+        # Track tire history for wear prediction
+        self.tire_history.append({
+            "timestamp": datetime.utcnow().timestamp(),
+            "front_left": telemetry.tires.front_left,
+            "front_right": telemetry.tires.front_right,
+            "rear_left": telemetry.tires.rear_left,
+            "rear_right": telemetry.tires.rear_right,
+        })
+        tire_cutoff = datetime.utcnow().timestamp() - 60
+        self.tire_history = [
+            h for h in self.tire_history if h["timestamp"] > tire_cutoff
+        ]
+
     def add_alert(self, alert: AlertModel) -> None:
         """Add an alert to the history, avoiding near-duplicate alerts."""
         # Prevent duplicate alerts within 10 seconds
@@ -163,5 +179,6 @@ class DataStore:
         self.alerts.clear()
         self.battery_history.clear()
         self.speed_history.clear()
+        self.tire_history.clear()
         self.simulation = SimulationStatus()
         logger.info("DataStore reset to initial state")

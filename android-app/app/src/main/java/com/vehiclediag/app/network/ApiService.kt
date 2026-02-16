@@ -1,6 +1,7 @@
 package com.vehiclediag.app.network
 
 import com.vehiclediag.app.data.models.*
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
@@ -42,4 +43,12 @@ interface ApiService {
 
     @GET("config/signals")
     suspend fun getSignalConfig(): SignalConfigResponse
+
+    // ── Code Generation ─────────────────────────────────────────────
+
+    @POST("codegen/generate")
+    suspend fun generateCode(@Body request: CodeGenRequest): CodeGenResponse
+
+    @GET("codegen/languages")
+    suspend fun getLanguages(): LanguagesResponse
 }

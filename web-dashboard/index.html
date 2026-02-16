@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GenAI Vehicle Health & Diagnostics Dashboard — Real-time monitoring, predictive analytics, and AI-powered code generation for Software Defined Vehicles.">
+    <title>Vehicle Health & Diagnostics — HMI Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- ═══ Sidebar ═══ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">⚡</div>
+            <span class="brand-text">VehicleDiag</span>
+            <span class="brand-version">v2.0</span>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-tab="dashboard" id="nav-dashboard">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="codegen" id="nav-codegen">
+                <span class="nav-icon">🤖</span>
+                <span>Code Generator</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="analytics" id="nav-analytics">
+                <span class="nav-icon">📈</span>
+                <span>Predictive</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="alerts" id="nav-alerts">
+                <span class="nav-icon">🔔</span>
+                <span>Alerts</span>
+                <span class="badge" id="alert-badge">0</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="variant-selector">
+                <label>Vehicle Variant</label>
+                <select id="variant-select">
+                    <option value="EV" selected>⚡ EV</option>
+                    <option value="Hybrid">🔄 Hybrid</option>
+                    <option value="ICE">🔥 ICE</option>
+                </select>
+            </div>
+            <div class="sim-controls">
+                <button id="btn-start-sim" class="btn btn-primary">▶ Start Sim</button>
+                <button id="btn-stop-sim" class="btn btn-danger" style="display:none">⏹ Stop Sim</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ═══ Main Content ═══ -->
+    <main class="main-content">
+        <!-- ─── Header ─── -->
+        <header class="topbar">
+            <h1 class="page-title" id="page-title">Dashboard</h1>
+            <div class="topbar-right">
+                <span class="status-pill" id="sim-status">● Idle</span>
+                <span class="clock" id="clock"></span>
+            </div>
+        </header>
+
+        <!-- ═══ Dashboard Tab ═══ -->
+        <section class="tab-content active" id="tab-dashboard">
+            <!-- Row 1: Speed + Battery + EV Range -->
+            <div class="grid grid-3">
+                <div class="card card-speed" id="card-speed">
+                    <div class="card-label">Speed</div>
+                    <div class="gauge-container">
+                        <svg class="speed-gauge" viewBox="0 0 200 120">
+                            <path class="gauge-bg" d="M20,110 A80,80 0 0,1 180,110"/>
+                            <path class="gauge-fill" id="speed-arc" d="M20,110 A80,80 0 0,1 180,110"/>
+                        </svg>
+                        <div class="gauge-value"><span id="speed-val">0</span><small>km/h</small></div>
+                    </div>
+                </div>
+                <div class="card card-battery" id="card-battery">
+                    <div class="card-label">Battery SoC</div>
+                    <div class="battery-visual">
+                        <div class="battery-outline">
+                            <div class="battery-fill" id="battery-fill"></div>
+                        </div>
+                        <div class="battery-value"><span id="battery-val">0</span>%</div>
+                        <div class="battery-sub" id="battery-sub">400V · 25°C · Good</div>
+                    </div>
+                </div>
+                <div class="card card-ev" id="card-ev-range">
+                    <div class="card-label">EV Range</div>
+                    <div class="big-number"><span id="ev-range-val">350</span><small>km</small></div>
+                    <div class="sub-info" id="ev-regen">Regen: Off</div>
+                </div>
+            </div>
+
+            <!-- Row 2: Tires + Drivetrain -->
+            <div class="grid grid-2">
+                <div class="card card-tires" id="card-tires">
+                    <div class="card-label">Tire Pressure</div>
+                    <div class="tire-grid">
+                        <div class="tire" id="tire-fl"><span class="tire-label">FL</span><span class="tire-val">32.0</span><small>PSI</small></div>
+                        <div class="tire" id="tire-fr"><span class="tire-label">FR</span><span class="tire-val">31.5</span><small>PSI</small></div>
+                        <div class="tire" id="tire-rl"><span class="tire-label">RL</span><span class="tire-val">31.8</span><small>PSI</small></div>
+                        <div class="tire" id="tire-rr"><span class="tire-label">RR</span><span class="tire-val">32.2</span><small>PSI</small></div>
+                    </div>
+                </div>
+                <div class="card card-drivetrain" id="card-drivetrain">
+                    <div class="card-label">Drivetrain</div>
+                    <div class="drivetrain-grid">
+                        <div class="dt-item">
+                            <div class="dt-label">Throttle</div>
+                            <div class="bar-container"><div class="bar bar-throttle" id="throttle-bar"></div></div>
+                            <span class="dt-val" id="throttle-val">0%</span>
+                        </div>
+                        <div class="dt-item">
+                            <div class="dt-label">Brake</div>
+                            <div class="bar-container"><div class="bar bar-brake" id="brake-bar"></div></div>
+                            <span class="dt-val" id="brake-val">0%</span>
+                        </div>
+                        <div class="dt-item">
+                            <div class="dt-label">Gear</div>
+                            <div class="gear-display" id="gear-val">P</div>
+                        </div>
+                        <div class="dt-item">
+                            <div class="dt-label">Steering</div>
+                            <div class="steering-display" id="steering-val">0°</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 3: GPS + Odometer -->
+            <div class="grid grid-2">
+                <div class="card card-gps" id="card-gps">
+                    <div class="card-label">GPS Location</div>
+                    <div class="gps-info">
+                        <span id="gps-lat">0.000000</span>, <span id="gps-lon">0.000000</span>
+                    </div>
+                </div>
+                <div class="card card-odo" id="card-odometer">
+                    <div class="card-label">Odometer</div>
+                    <div class="big-number"><span id="odo-val">0</span><small>km</small></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ Code Generator Tab ═══ -->
+        <section class="tab-content" id="tab-codegen">
+            <div class="codegen-panel">
+                <div class="card codegen-input-card">
+                    <div class="card-label">🤖 GenAI Code Generation</div>
+                    <p class="card-desc">Enter a natural-language vehicle diagnostics requirement to generate service code in multiple languages.</p>
+                    <textarea id="codegen-input" rows="3" placeholder="e.g. Monitor vehicle speed, battery SoC, and tire pressure and generate alerts on abnormal behavior."></textarea>
+                    <div class="codegen-options">
+                        <select id="codegen-lang">
+                            <option value="python">Python / FastAPI</option>
+                            <option value="cpp">C++ (MISRA)</option>
+                            <option value="kotlin">Kotlin / Android</option>
+                            <option value="rust">Rust</option>
+                        </select>
+                        <button id="btn-generate" class="btn btn-primary">Generate Code</button>
+                        <button id="btn-gen-all" class="btn btn-accent">Generate All Languages</button>
+                        <button id="btn-gen-design" class="btn btn-secondary">Generate Design</button>
+                        <button id="btn-gen-test" class="btn btn-secondary">Generate Tests</button>
+                    </div>
+                </div>
+                <div class="card codegen-output-card" id="codegen-output-card" style="display:none">
+                    <div class="card-label" id="codegen-output-label">Generated Code</div>
+                    <div class="codegen-meta" id="codegen-meta"></div>
+                    <pre class="code-output" id="codegen-output"></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ Predictive Analytics Tab ═══ -->
+        <section class="tab-content" id="tab-analytics">
+            <div class="grid grid-2">
+                <div class="card" id="card-predictions">
+                    <div class="card-label">📈 Predictions</div>
+                    <div id="predictions-list" class="predictions-list">
+                        <p class="placeholder-text">Start simulation to see predictions...</p>
+                    </div>
+                </div>
+                <div class="card" id="card-driving-score">
+                    <div class="card-label">🏆 Driving Score</div>
+                    <div class="score-display" id="driving-score">
+                        <div class="score-circle"><span id="overall-score">—</span></div>
+                        <div class="score-breakdown">
+                            <div class="score-item"><span>Speed</span><span id="score-speed">—</span></div>
+                            <div class="score-item"><span>Braking</span><span id="score-braking">—</span></div>
+                            <div class="score-item"><span>Efficiency</span><span id="score-efficiency">—</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ Alerts Tab ═══ -->
+        <section class="tab-content" id="tab-alerts">
+            <div class="card">
+                <div class="card-label">🔔 Active Alerts</div>
+                <div id="alerts-list" class="alerts-list">
+                    <p class="placeholder-text">No alerts yet. Start the simulation.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

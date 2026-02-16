@@ -26,16 +26,32 @@ SIGNAL_KEYWORDS: Dict[str, List[str]] = {
         "tire", "tyre", "tire pressure", "tyre pressure", "tpms",
         "inflation", "psi",
     ],
+    "throttle_position": [
+        "throttle", "accelerator", "gas pedal", "throttle position",
+    ],
+    "brake_position": [
+        "brake", "braking", "brake pedal", "brake position", "abs",
+    ],
+    "gear_position": [
+        "gear", "transmission", "gearbox", "shift", "gear position",
+    ],
+    "steering_angle": [
+        "steering", "steering wheel", "steering angle", "steer",
+    ],
+    "ev_range": [
+        "range", "ev range", "remaining range", "distance remaining",
+        "estimated range",
+    ],
     "engine_temp": [
         "engine temperature", "engine temp", "coolant", "overheating",
         "thermal",
     ],
     "fuel_level": [
-        "fuel", "fuel level", "gas", "petrol", "diesel", "range",
+        "fuel", "fuel level", "gas", "petrol", "diesel",
     ],
     "odometer": ["odometer", "mileage", "distance", "trip"],
     "acceleration": [
-        "acceleration", "g-force", "braking", "deceleration",
+        "acceleration", "g-force", "deceleration",
     ],
     "gps_location": [
         "gps", "location", "position", "coordinates", "geolocation",
@@ -68,6 +84,11 @@ SIGNAL_TO_WIDGET: Dict[str, str] = {
     "speed": "speed_gauge",
     "battery_soc": "battery_indicator",
     "tire_pressure": "tire_pressure_card",
+    "throttle_position": "throttle_bar",
+    "brake_position": "brake_bar",
+    "gear_position": "gear_indicator",
+    "steering_angle": "steering_wheel",
+    "ev_range": "ev_range_display",
     "engine_temp": "engine_temp_gauge",
     "fuel_level": "fuel_level_bar",
     "odometer": "odometer_display",
@@ -80,6 +101,9 @@ SIGNAL_TO_ALERTS: Dict[str, List[str]] = {
     "speed": ["high_speed_stress"],
     "battery_soc": ["battery_degradation", "low_battery"],
     "tire_pressure": ["tire_pressure_drop", "tire_failure"],
+    "throttle_position": ["harsh_acceleration"],
+    "brake_position": ["harsh_braking"],
+    "ev_range": ["low_ev_range"],
     "engine_temp": ["engine_overheating"],
     "fuel_level": ["low_fuel"],
     "acceleration": ["harsh_braking", "harsh_acceleration"],

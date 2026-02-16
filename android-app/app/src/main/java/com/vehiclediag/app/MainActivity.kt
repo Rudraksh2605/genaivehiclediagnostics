@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -21,6 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.vehiclediag.app.ui.screens.AlertsScreen
+import com.vehiclediag.app.ui.screens.CodeGeneratorScreen
 import com.vehiclediag.app.ui.screens.DashboardScreen
 import com.vehiclediag.app.ui.theme.DarkBackground
 import com.vehiclediag.app.ui.theme.DarkSurface
@@ -31,7 +33,7 @@ import com.vehiclediag.app.ui.theme.VehicleDiagnosticsTheme
 
 /**
  * MainActivity — Entry point for the Vehicle Diagnostics Android app.
- * Sets up bottom navigation between Dashboard and Alerts screens.
+ * Sets up bottom navigation between Dashboard, Code Generator, and Alerts screens.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,10 +51,11 @@ class MainActivity : ComponentActivity() {
  */
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     data object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Dashboard)
+    data object CodeGen : Screen("codegen", "CodeGen", Icons.Default.Code)
     data object Alerts : Screen("alerts", "Alerts", Icons.Default.Warning)
 }
 
-val bottomNavItems = listOf(Screen.Dashboard, Screen.Alerts)
+val bottomNavItems = listOf(Screen.Dashboard, Screen.CodeGen, Screen.Alerts)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,6 +119,7 @@ fun MainScreen() {
                 .background(DarkBackground)
         ) {
             composable(Screen.Dashboard.route) { DashboardScreen() }
+            composable(Screen.CodeGen.route) { CodeGeneratorScreen() }
             composable(Screen.Alerts.route) { AlertsScreen() }
         }
     }

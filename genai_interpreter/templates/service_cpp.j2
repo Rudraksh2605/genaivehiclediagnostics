@@ -1,0 +1,140 @@
+/**
+ * @file {{ service_name }}_service.cpp
+ * @brief Auto-generated {{ service_name | title }} SoA Service (MISRA C++ Compliant)
+ *
+ * Generated from requirement: "{{ requirement }}"
+ * Signals: {{ signals | join(', ') }}
+ *
+ * MISRA C++:2008 Compliance Notes:
+ *  - Rule 0-1-1: All code shall be reachable
+ *  - Rule 2-10-1: No identifier shadowing
+ *  - Rule 5-0-1: No implicit type conversions
+ *  - Rule 6-6-5: Only single exit point per function
+ *  - Rule 8-5-1: All variables shall be initialized
+ */
+
+#include <cstdint>
+#include <string>
+#include <vector>
+#include <chrono>
+#include <mutex>
+
+namespace {{ namespace | default('vehicle') }} {
+namespace {{ service_name }} {
+
+// ── Signal Data Structures ──────────────────────────────────────────────────
+{% for signal in signals %}
+
+/**
+ * @struct {{ signal | title | replace('_', '') }}Data
+ * @brief Data container for {{ signal }} signal
+ */
+struct {{ signal | title | replace('_', '') }}Data {
+    float value{0.0F};                    // MISRA: Rule 8-5-1 - initialized
+    std::string unit{"{{ units.get(signal, 'unit') }}"};
+    std::string status{"normal"};
+    int64_t timestamp_ms{0};
+
+    {{ signal | title | replace('_', '') }}Data() = default;   // MISRA: explicit default ctor
+
+    explicit {{ signal | title | replace('_', '') }}Data(float const val)  // MISRA: Rule 12-1-1 explicit
+        : value(val)
+        , timestamp_ms(std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::system_clock::now().time_since_epoch()).count())
+    {}
+};
+{% endfor %}
+
+
+/**
+ * @struct {{ service_name | title | replace('_', '') }}Telemetry
+ * @brief Combined telemetry snapshot
+ */
+struct {{ service_name | title | replace('_', '') }}Telemetry {
+{% for signal in signals %}
+    {{ signal | title | replace('_', '') }}Data {{ signal }}{};  // MISRA: Rule 8-5-1
+{% endfor %}
+    int64_t timestamp_ms{0};
+};
+
+
+// ── Alert Severity ──────────────────────────────────────────────────────────
+
+enum class AlertSeverity : uint8_t {   // MISRA: Rule 7-2-2 underlying type
+    INFO     = 0U,
+    WARNING  = 1U,
+    CRITICAL = 2U
+};
+
+
+struct Alert {
+    std::string alert_type{};
+    AlertSeverity severity{AlertSeverity::INFO};
+    std::string message{};
+    std::string signal_id{};
+    float value{0.0F};
+    int64_t timestamp_ms{0};
+};
+
+
+// ── Service Interface ───────────────────────────────────────────────────────
+
+class I{{ service_name | title | replace('_', '') }}Service {
+public:
+    virtual ~I{{ service_name | title | replace('_', '') }}Service() = default;
+
+    virtual {{ service_name | title | replace('_', '') }}Telemetry GetLatestTelemetry() const = 0;
+{% for signal in signals %}
+    virtual {{ signal | title | replace('_', '') }}Data Get{{ signal | title | replace('_', '') }}() const = 0;
+{% endfor %}
+    virtual std::vector<Alert> GetAlerts(uint32_t limit) const = 0;
+    virtual void UpdateTelemetry({{ service_name | title | replace('_', '') }}Telemetry const& telemetry) = 0;
+};
+
+
+// ── Concrete Implementation ─────────────────────────────────────────────────
+
+class {{ service_name | title | replace('_', '') }}Service final
+    : public I{{ service_name | title | replace('_', '') }}Service {
+public:
+    {{ service_name | title | replace('_', '') }}Service() = default;
+    ~{{ service_name | title | replace('_', '') }}Service() override = default;
+
+    // MISRA: Rule 12-8-2 — delete copy/move to enforce singleton
+    {{ service_name | title | replace('_', '') }}Service({{ service_name | title | replace('_', '') }}Service const&) = delete;
+    {{ service_name | title | replace('_', '') }}Service& operator=({{ service_name | title | replace('_', '') }}Service const&) = delete;
+
+    {{ service_name | title | replace('_', '') }}Telemetry GetLatestTelemetry() const override {
+        std::lock_guard<std::mutex> const lock(mutex_);  // MISRA: thread safety
+        return latest_;                                     // single exit point
+    }
+
+{% for signal in signals %}
+    {{ signal | title | replace('_', '') }}Data Get{{ signal | title | replace('_', '') }}() const override {
+        std::lock_guard<std::mutex> const lock(mutex_);
+        return latest_.{{ signal }};
+    }
+
+{% endfor %}
+    std::vector<Alert> GetAlerts(uint32_t const limit) const override {
+        std::lock_guard<std::mutex> const lock(mutex_);
+        uint32_t const count = (limit < static_cast<uint32_t>(alerts_.size()))
+                                 ? limit
+                                 : static_cast<uint32_t>(alerts_.size());
+        return std::vector<Alert>(alerts_.end() - static_cast<int64_t>(count),
+                                  alerts_.end());
+    }
+
+    void UpdateTelemetry({{ service_name | title | replace('_', '') }}Telemetry const& telemetry) override {
+        std::lock_guard<std::mutex> const lock(mutex_);
+        latest_ = telemetry;
+    }
+
+private:
+    mutable std::mutex mutex_{};
+    {{ service_name | title | replace('_', '') }}Telemetry latest_{};
+    std::vector<Alert> alerts_{};
+};
+
+}  // namespace {{ service_name }}
+}  // namespace {{ namespace | default('vehicle') }}

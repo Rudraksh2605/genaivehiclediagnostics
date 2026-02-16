@@ -1,0 +1,64 @@
+"""
+Auto-generated FastAPI service for {{ service_name }}.
+Generated from requirement: "{{ requirement }}"
+
+Signals: {{ signals | join(', ') }}
+"""
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime
+
+router = APIRouter(prefix="/{{ service_name | replace('_', '-') }}", tags=["{{ service_name | title }}"])
+
+
+# ── Data Models ──────────────────────────────────────────────────────────────
+{% for signal in signals %}
+
+class {{ signal | title | replace('_', '') }}Data(BaseModel):
+    """Data model for {{ signal }} signal."""
+    value: float = Field(description="{{ signal }} current value")
+    unit: str = Field(default="{{ units.get(signal, 'unit') }}")
+    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    status: str = Field(default="normal")
+{% endfor %}
+
+
+class {{ service_name | title | replace('_', '') }}Telemetry(BaseModel):
+    """Combined telemetry for {{ service_name }}."""
+    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+{% for signal in signals %}
+    {{ signal }}: {{ signal | title | replace('_', '') }}Data = Field(default_factory={{ signal | title | replace('_', '') }}Data)
+{% endfor %}
+
+
+# ── In-Memory Store ──────────────────────────────────────────────────────────
+
+_latest: Optional[{{ service_name | title | replace('_', '') }}Telemetry] = None
+_alerts: List[dict] = []
+
+
+# ── Endpoints ────────────────────────────────────────────────────────────────
+
+@router.get("/all")
+async def get_all():
+    """Return the latest telemetry snapshot."""
+    if _latest is None:
+        return {{ service_name | title | replace('_', '') }}Telemetry().dict()
+    return _latest.dict()
+
+{% for signal in signals %}
+@router.get("/{{ signal | replace('_', '-') }}")
+async def get_{{ signal }}():
+    """Return current {{ signal }} data."""
+    if _latest is None:
+        return {{ signal | title | replace('_', '') }}Data().dict()
+    return _latest.{{ signal }}.dict()
+
+{% endfor %}
+
+@router.get("/alerts")
+async def get_alerts(limit: int = 50):
+    """Return recent alerts."""
+    return _alerts[-limit:]

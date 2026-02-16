@@ -1,0 +1,73 @@
+/**
+ * @file test_{{ service_name }}_service.cpp
+ * @brief Auto-generated Google Test suite for {{ service_name | title }} service
+ *
+ * Generated from requirement: "{{ requirement }}"
+ * Tests cover: data models, service interface, and alert rules.
+ */
+
+#include <gtest/gtest.h>
+#include "{{ service_name }}_service.cpp"
+
+using namespace {{ namespace | default('vehicle') }}::{{ service_name }};
+
+// ── Data Model Tests ────────────────────────────────────────────────────────
+{% for signal in signals %}
+
+TEST({{ signal | title | replace('_', '') }}DataTest, DefaultInitialization) {
+    {{ signal | title | replace('_', '') }}Data const data{};
+    EXPECT_FLOAT_EQ(data.value, 0.0F);
+    EXPECT_EQ(data.status, "normal");
+}
+
+TEST({{ signal | title | replace('_', '') }}DataTest, ExplicitConstruction) {
+    {{ signal | title | replace('_', '') }}Data const data{42.5F};
+    EXPECT_FLOAT_EQ(data.value, 42.5F);
+    EXPECT_GT(data.timestamp_ms, 0);
+}
+{% endfor %}
+
+
+// ── Service Tests ───────────────────────────────────────────────────────────
+
+class {{ service_name | title | replace('_', '') }}ServiceTest : public ::testing::Test {
+protected:
+    {{ service_name | title | replace('_', '') }}Service service{};
+};
+
+TEST_F({{ service_name | title | replace('_', '') }}ServiceTest, InitialTelemetryIsDefault) {
+    auto const telemetry = service.GetLatestTelemetry();
+{% for signal in signals %}
+    EXPECT_FLOAT_EQ(telemetry.{{ signal }}.value, 0.0F);
+{% endfor %}
+}
+
+TEST_F({{ service_name | title | replace('_', '') }}ServiceTest, UpdateAndRetrieveTelemetry) {
+    {{ service_name | title | replace('_', '') }}Telemetry t{};
+{% for signal in signals %}
+    t.{{ signal }}.value = {{ loop.index }}.0F;
+{% endfor %}
+    service.UpdateTelemetry(t);
+
+    auto const result = service.GetLatestTelemetry();
+{% for signal in signals %}
+    EXPECT_FLOAT_EQ(result.{{ signal }}.value, {{ loop.index }}.0F);
+{% endfor %}
+}
+
+TEST_F({{ service_name | title | replace('_', '') }}ServiceTest, GetAlertsEmpty) {
+    auto const alerts = service.GetAlerts(10U);
+    EXPECT_TRUE(alerts.empty());
+}
+
+{% for signal in signals %}
+TEST_F({{ service_name | title | replace('_', '') }}ServiceTest, Get{{ signal | title | replace('_', '') }}Individually) {
+    auto const data = service.Get{{ signal | title | replace('_', '') }}();
+    EXPECT_FLOAT_EQ(data.value, 0.0F);
+}
+{% endfor %}
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

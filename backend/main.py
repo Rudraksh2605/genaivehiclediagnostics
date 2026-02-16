@@ -15,11 +15,16 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from backend.api.vehicle_routes import router as vehicle_router
 from backend.api.simulation_routes import router as simulation_router
 from backend.api.traceability_routes import router as traceability_router
 from backend.api.config_routes import router as config_router
+from backend.api.codegen_routes import router as codegen_router
+from backend.api.compliance_routes import router as compliance_router
+from backend.api.predictive_routes import router as predictive_router
+from backend.api.ml_routes import router as ml_router
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -35,9 +40,10 @@ app = FastAPI(
     description=(
         "GenAI-Assisted Development of Vehicle Health & Diagnostics "
         "for Software Defined Vehicles. Provides real-time vehicle "
-        "telemetry, health analytics, alerts, and simulation control."
+        "telemetry, health analytics, alerts, simulation control, "
+        "multi-language code generation, and MISRA compliance checking."
     ),
-    version="1.0.0",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -56,6 +62,18 @@ app.include_router(vehicle_router)
 app.include_router(simulation_router)
 app.include_router(traceability_router)
 app.include_router(config_router)
+app.include_router(codegen_router)
+app.include_router(compliance_router)
+app.include_router(predictive_router)
+app.include_router(ml_router)
+
+# ── Static Files (Web Dashboard) ────────────────────────────────────────────
+_dashboard_dir = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "web-dashboard",
+)
+if os.path.isdir(_dashboard_dir):
+    app.mount("/dashboard", StaticFiles(directory=_dashboard_dir, html=True), name="dashboard")
 
 
 # ── Root & Health ────────────────────────────────────────────────────────────
@@ -64,9 +82,10 @@ async def root():
     """API root — returns service info."""
     return {
         "service": "Vehicle Health & Diagnostics API",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status": "operational",
         "docs": "/docs",
+        "dashboard": "/dashboard",
         "endpoints": {
             "vehicle": "/vehicle/all",
             "speed": "/vehicle/speed",
@@ -78,6 +97,18 @@ async def root():
             "simulate_status": "/vehicle/simulate/status",
             "traceability": "/traceability/map",
             "config": "/config/signals",
+            "codegen": "/codegen/generate",
+            "codegen_all": "/codegen/generate-all",
+            "design": "/codegen/design",
+            "test_gen": "/codegen/test",
+            "llm_compare": "/codegen/compare-llms",
+            "compliance_check": "/compliance/check",
+            "compliance_rules": "/compliance/rules",
+            "predictive_analysis": "/predictive/analysis",
+            "ml_train": "/ml/train",
+            "ml_predict": "/ml/predict",
+            "ml_status": "/ml/status",
+            "ml_gpu_info": "/ml/gpu",
         },
     }
 

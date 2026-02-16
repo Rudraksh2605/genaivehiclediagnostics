@@ -20,7 +20,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vehiclediag.app.ui.components.BatteryIndicator
+import com.vehiclediag.app.ui.components.DrivetrainPanel
+import com.vehiclediag.app.ui.components.EVRangeCard
 import com.vehiclediag.app.ui.components.SpeedGauge
+import com.vehiclediag.app.ui.components.ThrottleBrakeBar
 import com.vehiclediag.app.ui.components.TirePressureGrid
 import com.vehiclediag.app.ui.theme.*
 import com.vehiclediag.app.viewmodel.DashboardViewModel
@@ -28,7 +31,8 @@ import com.vehiclediag.app.viewmodel.DashboardViewModel
 /**
  * Dashboard Screen — Main vehicle health overview.
  * Shows speed gauge, battery indicator, tire pressure grid,
- * and simulation controls with live 1-second refresh.
+ * drivetrain controls, EV range, and simulation controls
+ * with live 1-second refresh.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,20 +53,42 @@ fun DashboardScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // ── Header ──────────────────────────────────────────────────
-        Text(
-            text = "Vehicle Health Dashboard",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Vehicle Health Dashboard",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (simStatus.running) "🟢 Live Data" else "⚪ Mock Data",
+                    fontSize = 12.sp,
+                    color = if (simStatus.running) AccentGreen else TextMuted
+                )
+            }
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = if (simStatus.running) "🟢 Live Data" else "⚪ Mock Data",
-            fontSize = 12.sp,
-            color = if (simStatus.running) AccentGreen else TextMuted
-        )
+            // Vehicle variant badge
+            Text(
+                text = when (telemetry.vehicleVariant) {
+                    "EV" -> "⚡ EV"
+                    "Hybrid" -> "🔄 HEV"
+                    else -> "🔥 ICE"
+                },
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = AccentCyan,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(AccentCyan.copy(alpha = 0.12f))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -174,6 +200,36 @@ fun DashboardScreen(
                 voltage = telemetry.battery.voltage,
                 temperature = telemetry.battery.temperature,
                 healthStatus = telemetry.battery.healthStatus
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── EV Range ────────────────────────────────────────────
+            if (telemetry.vehicleVariant != "ICE") {
+                EVRangeCard(
+                    evRange = telemetry.evStatus.evRange,
+                    charging = telemetry.evStatus.charging,
+                    regenBraking = telemetry.evStatus.regenBraking
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // ── Throttle & Brake ────────────────────────────────────
+            ThrottleBrakeBar(
+                throttle = telemetry.drivetrain.throttlePosition,
+                brake = telemetry.drivetrain.brakePosition
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ── Drivetrain Panel (Gear, Steering, GPS) ──────────────
+            DrivetrainPanel(
+                gearPosition = telemetry.drivetrain.gearPosition,
+                steeringAngle = telemetry.drivetrain.steeringAngle,
+                latitude = telemetry.gps.latitude,
+                longitude = telemetry.gps.longitude,
+                vehicleVariant = telemetry.vehicleVariant
             )
 
             Spacer(modifier = Modifier.height(16.dp))

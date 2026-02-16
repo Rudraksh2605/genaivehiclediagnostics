@@ -6,7 +6,10 @@
       "unit": "km/h",
       "min": 0,
       "max": 200,
-      "normal_range": [0, 120],
+      "normal_range": [
+        0,
+        120
+      ],
       "ui_widget": "speed_gauge",
       "analytics_rules": [
         {
@@ -24,7 +27,10 @@
       "unit": "%",
       "min": 0,
       "max": 100,
-      "normal_range": [20, 100],
+      "normal_range": [
+        20,
+        100
+      ],
       "ui_widget": "battery_indicator",
       "analytics_rules": [
         {
@@ -42,7 +48,10 @@
       "unit": "PSI",
       "min": 0,
       "max": 50,
-      "normal_range": [28, 35],
+      "normal_range": [
+        28,
+        35
+      ],
       "ui_widget": "tire_pressure_card",
       "analytics_rules": [
         {
@@ -59,7 +68,10 @@
       "unit": "PSI",
       "min": 0,
       "max": 50,
-      "normal_range": [28, 35],
+      "normal_range": [
+        28,
+        35
+      ],
       "ui_widget": "tire_pressure_card",
       "analytics_rules": [
         {
@@ -76,7 +88,10 @@
       "unit": "PSI",
       "min": 0,
       "max": 50,
-      "normal_range": [28, 35],
+      "normal_range": [
+        28,
+        35
+      ],
       "ui_widget": "tire_pressure_card",
       "analytics_rules": [
         {
@@ -93,7 +108,10 @@
       "unit": "PSI",
       "min": 0,
       "max": 50,
-      "normal_range": [28, 35],
+      "normal_range": [
+        28,
+        35
+      ],
       "ui_widget": "tire_pressure_card",
       "analytics_rules": [
         {
@@ -103,9 +121,96 @@
           "message": "Possible Tire Failure: Rear Right tire pressure critically low"
         }
       ]
+    },
+    {
+      "id": "throttle_position",
+      "name": "Throttle Position",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "normal_range": [
+        0,
+        80
+      ],
+      "ui_widget": "throttle_bar",
+      "analytics_rules": [
+        {
+          "condition": "value > 90",
+          "sustained_seconds": 5,
+          "alert_id": "harsh_acceleration",
+          "severity": "warning",
+          "message": "Harsh Acceleration: Throttle sustained above 90%"
+        }
+      ]
+    },
+    {
+      "id": "brake_position",
+      "name": "Brake Position",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "normal_range": [
+        0,
+        70
+      ],
+      "ui_widget": "brake_bar",
+      "analytics_rules": [
+        {
+          "condition": "value > 90",
+          "alert_id": "harsh_braking",
+          "severity": "warning",
+          "message": "Harsh Braking Detected: Brake above 90%"
+        }
+      ]
+    },
+    {
+      "id": "gear_position",
+      "name": "Gear Position",
+      "unit": "",
+      "min": 0,
+      "max": 0,
+      "normal_range": [
+        0,
+        0
+      ],
+      "ui_widget": "gear_indicator",
+      "analytics_rules": []
+    },
+    {
+      "id": "steering_angle",
+      "name": "Steering Angle",
+      "unit": "degrees",
+      "min": -540,
+      "max": 540,
+      "normal_range": [
+        -180,
+        180
+      ],
+      "ui_widget": "steering_wheel",
+      "analytics_rules": []
+    },
+    {
+      "id": "ev_range",
+      "name": "EV Range",
+      "unit": "km",
+      "min": 0,
+      "max": 800,
+      "normal_range": [
+        30,
+        800
+      ],
+      "ui_widget": "ev_range_display",
+      "analytics_rules": [
+        {
+          "condition": "value < 30",
+          "alert_id": "low_ev_range",
+          "severity": "warning",
+          "message": "Low EV Range Alert: Range below 30 km"
+        }
+      ]
     }
   ],
-  "version": "1.0.0",
+  "version": "2.0.0",
   "ota_update_url": "https://ota.example.com/signals_config.json",
   "last_updated": "2026-02-12T00:00:00Z"
 }

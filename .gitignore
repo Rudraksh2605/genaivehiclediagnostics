@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.env
+.venv
+
+# Android
+.gradle/
+local.properties
+.idea/
+build/
+output.json
+
+# Keys and Secrets
+*.key
+*.pem
+credentials.json
+google-services.json
+client_secret.json
+service_account.json
+secrets.xml
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Temporary / Generated Files
+test_output.txt
+debug_imports.py
+test_endpoints.py
+export_dataset.py
+dataset_battery_prediction.csv
+dataset_tire_wear.csv
+*.log
+*.tmp
+coverage.xml
+htmlcov/
