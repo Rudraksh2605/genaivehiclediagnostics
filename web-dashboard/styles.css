@@ -821,3 +821,138 @@ textarea:focus {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
 }
+
+/* ═══ ML Controls ═══ */
+.ml-controls {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    margin-bottom: 16px;
+}
+
+.ml-option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ml-option label {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-muted);
+}
+
+.ml-option input,
+.ml-option select,
+.ota-form input,
+.ota-form select,
+.ota-form textarea {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: .85rem;
+    min-width: 120px;
+}
+
+.ml-option input:focus,
+.ml-option select:focus,
+.ota-form input:focus,
+.ota-form select:focus,
+.ota-form textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.ml-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    font-size: .85rem;
+    color: var(--text-secondary);
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-dot.idle {
+    background: var(--text-muted);
+}
+
+.status-dot.training {
+    background: var(--amber);
+    animation: pulse 1s infinite;
+}
+
+.status-dot.success {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green-glow);
+}
+
+.status-dot.error {
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red-glow);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ═══ OTA Form ═══ */
+.ota-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+    margin-bottom: 16px;
+}
+
+.ota-form textarea {
+    resize: vertical;
+    min-height: 60px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .8rem;
+}
+
+.ota-status {
+    margin-top: 8px;
+}
+
+.ota-version {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: var(--accent-glow);
+    border-radius: var(--radius-sm);
+    text-align: center;
+}
+
+/* ═══ Charts ═══ */
+canvas {
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    padding: 8px;
+}
+
+/* ═══ Disabled button ═══ */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    filter: none;
+}

@@ -232,7 +232,7 @@ class BuildPipeline:
     # ── Kotlin Validation ────────────────────────────────────────────────
 
     def _validate_kotlin(self, code: str) -> Dict[str, Any]:
-        """Validate Kotlin code structure."""
+        """Validate Kotlin code structure and attempt compilation."""
         errors: List[str] = []
         warnings: List[str] = []
         details: Dict[str, Any] = {}
@@ -267,6 +267,14 @@ class BuildPipeline:
         if not has_fun_main and not has_classes:
             warnings.append("No main() function or class definitions found")
 
+        # Try real Kotlin compilation if kotlinc is available
+        compile_result = self._try_compile_kotlin(code)
+        if compile_result:
+            details["compilation"] = compile_result
+            if not compile_result.get("success"):
+                for err in compile_result.get("errors", []):
+                    errors.append(f"[kotlinc] {err}")
+
         return {
             "build_success": len(errors) == 0,
             "errors": errors,
@@ -277,7 +285,7 @@ class BuildPipeline:
     # ── Rust Validation ──────────────────────────────────────────────────
 
     def _validate_rust(self, code: str) -> Dict[str, Any]:
-        """Validate Rust code structure."""
+        """Validate Rust code structure and attempt compilation."""
         errors: List[str] = []
         warnings: List[str] = []
         details: Dict[str, Any] = {}
@@ -315,12 +323,88 @@ class BuildPipeline:
         if not has_fn_main and not has_structs and not has_traits:
             warnings.append("No main(), struct, or trait definitions found")
 
+        # Try real Rust compilation if rustc is available
+        compile_result = self._try_compile_rust(code)
+        if compile_result:
+            details["compilation"] = compile_result
+            if not compile_result.get("success"):
+                for err in compile_result.get("errors", []):
+                    errors.append(f"[rustc] {err}")
+
         return {
             "build_success": len(errors) == 0,
             "errors": errors,
             "warnings": warnings,
             "details": details,
         }
+
+    def _try_compile_kotlin(self, code: str) -> Optional[Dict[str, Any]]:
+        """Try to compile Kotlin code if kotlinc is available."""
+        tmpfile = None
+        try:
+            # Check if kotlinc is available
+            subprocess.run(["kotlinc", "-version"], capture_output=True, timeout=5)
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return None  # kotlinc not installed
+        
+        try:
+            tmpfile = tempfile.NamedTemporaryFile(
+                suffix=".kt", mode="w", delete=False, encoding="utf-8",
+            )
+            tmpfile.write(code)
+            tmpfile.close()
+
+            result = subprocess.run(
+                ["kotlinc", "-nowarn", tmpfile.name, "-d", tmpfile.name.replace(".kt", ".jar")],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode == 0:
+                return {"success": True, "compiler": "kotlinc"}
+            else:
+                return {"success": False, "compiler": "kotlinc", "errors": [result.stderr[:500]]}
+        except Exception as e:
+            return {"success": False, "compiler": "kotlinc", "errors": [str(e)]}
+        finally:
+            if tmpfile:
+                for ext in [".kt", ".jar"]:
+                    try:
+                        os.unlink(tmpfile.name.replace(".kt", ext))
+                    except Exception:
+                        pass
+
+    def _try_compile_rust(self, code: str) -> Optional[Dict[str, Any]]:
+        """Try to compile Rust code if rustc is available."""
+        tmpfile = None
+        try:
+            subprocess.run(["rustc", "--version"], capture_output=True, timeout=5)
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return None  # rustc not installed
+
+        try:
+            tmpfile = tempfile.NamedTemporaryFile(
+                suffix=".rs", mode="w", delete=False, encoding="utf-8",
+            )
+            tmpfile.write(code)
+            tmpfile.close()
+
+            result = subprocess.run(
+                ["rustc", "--edition", "2021", "--crate-type", "lib", tmpfile.name,
+                 "-o", tmpfile.name.replace(".rs", ".rlib")],
+                capture_output=True, text=True, timeout=20,
+            )
+            if result.returncode == 0:
+                return {"success": True, "compiler": "rustc"}
+            else:
+                return {"success": False, "compiler": "rustc", "errors": [result.stderr[:500]]}
+        except Exception as e:
+            return {"success": False, "compiler": "rustc", "errors": [str(e)]}
+        finally:
+            if tmpfile:
+                for ext in [".rs", ".rlib"]:
+                    try:
+                        os.unlink(tmpfile.name.replace(".rs", ext))
+                    except Exception:
+                        pass
 
 
 # Singleton

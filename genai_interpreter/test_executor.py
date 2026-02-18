@@ -244,6 +244,154 @@ class TestExecutor:
             "total_pipeline_time_ms": round(total_time, 1),
         }
 
+    def validate_with_retry(
+        self,
+        requirement: str,
+        language: str = "python",
+        max_retries: int = 3,
+    ) -> Dict[str, Any]:
+        """
+        Iterative Build Loop: Generate → Test → Fix → Re-test.
+
+        On test failure, feeds the error output back to the LLM to generate
+        corrected code. Repeats up to max_retries times, demonstrating the
+        self-healing iterative build mechanism.
+
+        Args:
+            requirement: Natural language requirement
+            language: Target language
+            max_retries: Maximum number of fix iterations (default: 3)
+
+        Returns:
+            Dict with all iterations, final result, and improvement metrics
+        """
+        from genai_interpreter.code_generator import generate_code
+        from genai_interpreter.test_generator import generate_tests
+        from genai_interpreter.requirement_parser import parse_requirement
+        from genai_interpreter.llm_provider import get_provider
+
+        total_start = time.perf_counter()
+        iterations = []
+
+        # Step 1: Parse requirement
+        blueprint = parse_requirement(requirement)
+
+        # Step 2: Initial code generation
+        generated = generate_code(blueprint, language, use_llm=True)
+        source_code = generated.code
+
+        # Step 3: Generate test code (once — tests stay constant)
+        test_result = generate_tests(blueprint, language, use_llm=True)
+        test_code = test_result.code
+
+        # Step 4: Execute tests
+        exec_result = self.execute_tests(source_code, test_code, language)
+
+        iterations.append({
+            "iteration": 1,
+            "action": "initial_generation",
+            "source_code": source_code,
+            "lines_of_code": generated.lines_of_code,
+            "generation_method": generated.generation_method,
+            "test_result": exec_result,
+        })
+
+        # Step 5: Iterative fix loop
+        current_code = source_code
+        attempt = 1
+
+        while not exec_result.get("success", False) and attempt <= max_retries:
+            attempt += 1
+            logger.info(f"Iterative fix — attempt {attempt}/{max_retries + 1}")
+
+            # Build a fix prompt with the error context
+            error_output = exec_result.get("output", "Tests failed")
+            fix_prompt = (
+                f"The following {language} code was generated for this requirement:\n"
+                f'"{requirement}"\n\n'
+                f"```{language}\n{current_code}\n```\n\n"
+                f"When tested, the following errors occurred:\n"
+                f"```\n{error_output[:2000]}\n```\n\n"
+                f"Please fix the code to make all tests pass. "
+                f"Generate ONLY the corrected source code, no explanations."
+            )
+
+            try:
+                provider = get_provider()
+                if provider.name != "template":
+                    response = provider.generate(fix_prompt)
+                    fixed_code = response.text.strip()
+                    # Strip markdown code blocks if present
+                    if fixed_code.startswith("```"):
+                        lines = fixed_code.split("\n")
+                        lines = lines[1:]  # remove opening ```lang
+                        if lines and lines[-1].strip() == "```":
+                            lines = lines[:-1]
+                        fixed_code = "\n".join(lines)
+                    current_code = fixed_code
+                else:
+                    # Template provider can't fix — just note it
+                    logger.info("Template provider cannot fix code, stopping retries")
+                    iterations.append({
+                        "iteration": attempt,
+                        "action": "skip_no_llm",
+                        "message": "No LLM available for iterative fixing (template-only mode)",
+                        "test_result": exec_result,
+                    })
+                    break
+            except Exception as e:
+                logger.warning(f"LLM fix attempt {attempt} failed: {e}")
+                iterations.append({
+                    "iteration": attempt,
+                    "action": "fix_failed",
+                    "error": str(e),
+                    "test_result": exec_result,
+                })
+                break
+
+            # Re-run tests with fixed code
+            exec_result = self.execute_tests(current_code, test_code, language)
+
+            iterations.append({
+                "iteration": attempt,
+                "action": "iterative_fix",
+                "source_code": current_code,
+                "lines_of_code": len(current_code.splitlines()),
+                "generation_method": "llm:iterative_fix",
+                "test_result": exec_result,
+            })
+
+        total_time = (time.perf_counter() - total_start) * 1000
+
+        # Compute improvement metrics
+        first_pass_rate = iterations[0]["test_result"].get("pass_rate", 0)
+        final_pass_rate = iterations[-1]["test_result"].get("pass_rate", 0)
+
+        return {
+            "requirement": requirement,
+            "language": language,
+            "iterative_build": True,
+            "total_iterations": len(iterations),
+            "max_retries_allowed": max_retries,
+            "final_success": exec_result.get("success", False),
+            "improvement": {
+                "initial_pass_rate": first_pass_rate,
+                "final_pass_rate": final_pass_rate,
+                "improved": final_pass_rate > first_pass_rate,
+            },
+            "source_code": {
+                "code": current_code,
+                "lines": len(current_code.splitlines()),
+            },
+            "test_code": {
+                "code": test_code,
+                "lines": len(test_code.splitlines()),
+                "method": test_result.generation_method,
+            },
+            "iterations": iterations,
+            "total_pipeline_time_ms": round(total_time, 1),
+        }
+
 
 # Singleton
 _executor = TestExecutor()

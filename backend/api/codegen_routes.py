@@ -269,6 +269,7 @@ async def get_llm_metrics():
 class ValidateRequest(BaseModel):
     requirement: str = Field(..., description="Natural language requirement")
     language: str = Field(default="python", description="Language (currently python)")
+    max_retries: int = Field(default=3, ge=0, le=5, description="Max iterative fix attempts (0 = no retry)")
 
 
 @router.post("/validate")
@@ -278,14 +279,24 @@ async def validate_generated_code(req: ValidateRequest):
 
     Generates source code and test cases from a natural-language requirement,
     then automatically executes the tests and returns pass/fail results.
+
+    With max_retries > 0, implements an **iterative build loop**:
+    on test failure, feeds errors back to the LLM for auto-correction.
     """
     from genai_interpreter.test_executor import get_executor
 
     try:
-        result = get_executor().validate_code_with_tests(
-            requirement=req.requirement,
-            language=req.language,
-        )
+        if req.max_retries > 0:
+            result = get_executor().validate_with_retry(
+                requirement=req.requirement,
+                language=req.language,
+                max_retries=req.max_retries,
+            )
+        else:
+            result = get_executor().validate_code_with_tests(
+                requirement=req.requirement,
+                language=req.language,
+            )
         return result
     except Exception as e:
         logger.error(f"Validation failed: {e}")
@@ -316,3 +327,55 @@ async def build_check(req: BuildRequest):
     except Exception as e:
         logger.error(f"Build check failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/demo-compare")
+async def demo_compare():
+    """
+    Demo LLM comparison — no API key required.
+
+    Runs a sample vehicle telemetry requirement through the template provider
+    across all supported languages, demonstrating the comparison engine.
+    Returns per-language results with quality KPIs.
+    """
+    try:
+        sample_requirement = (
+            "Create a vehicle speed monitor service that reads CAN bus speed data, "
+            "checks against configurable speed thresholds, and triggers alerts when "
+            "the vehicle exceeds the limit for more than 5 consecutive readings."
+        )
+        blueprint = parse_requirement(sample_requirement)
+        report = compare_llms(
+            blueprint,
+            languages=["python", "cpp", "kotlin", "rust"],
+            providers=["template"],
+        )
+        return {
+            "demo": True,
+            "note": "Using template provider (no API key needed). Add GOOGLE_API_KEY or OPENAI_API_KEY for real LLM comparison.",
+            "requirement": report.requirement,
+            "providers_compared": report.providers_compared,
+            "languages_tested": report.languages_tested,
+            "summary": report.summary,
+            "comparisons": [
+                {
+                    "language": comp.language,
+                    "results": [
+                        {
+                            "provider": r.provider,
+                            "lines_of_code": r.lines_of_code,
+                            "latency_ms": r.latency_ms,
+                            "tokens_used": r.tokens_used,
+                            "syntax_valid": r.syntax_valid,
+                            "code_preview": r.code[:200] + "..." if len(r.code) > 200 else r.code,
+                        }
+                        for r in comp.results
+                    ],
+                }
+                for comp in report.comparisons
+            ],
+        }
+    except Exception as e:
+        logger.error(f"Demo compare failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+

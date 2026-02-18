@@ -25,6 +25,10 @@ from backend.api.codegen_routes import router as codegen_router
 from backend.api.compliance_routes import router as compliance_router
 from backend.api.predictive_routes import router as predictive_router
 from backend.api.ml_routes import router as ml_router
+from backend.api.history_routes import router as history_router
+from backend.api.ota_routes import router as ota_router
+from backend.api.external_sim_routes import router as external_sim_router
+from backend.api.ws_routes import router as ws_router
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -66,6 +70,10 @@ app.include_router(codegen_router)
 app.include_router(compliance_router)
 app.include_router(predictive_router)
 app.include_router(ml_router)
+app.include_router(history_router)
+app.include_router(ota_router)
+app.include_router(external_sim_router)
+app.include_router(ws_router)
 
 # ── Static Files (Web Dashboard) ────────────────────────────────────────────
 _dashboard_dir = os.path.join(
@@ -109,6 +117,12 @@ async def root():
             "ml_predict": "/ml/predict",
             "ml_status": "/ml/status",
             "ml_gpu_info": "/ml/gpu",
+            "telemetry_history": "/vehicle/history",
+            "ota_deploy": "/ota/deploy",
+            "ota_history": "/ota/history",
+            "ota_status": "/ota/status",
+            "external_sim_feed": "/simulator/external/feed",
+            "external_sim_schema": "/simulator/external/schema",
         },
     }
 

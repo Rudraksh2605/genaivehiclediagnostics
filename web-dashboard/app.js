@@ -14,10 +14,12 @@ document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.add('active');
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.getElementById(`tab-${tab}`).classList.add('active');
-        document.getElementById('page-title').textContent =
-            tab === 'dashboard' ? 'Dashboard' :
-                tab === 'codegen' ? 'Code Generator' :
-                    tab === 'analytics' ? 'Predictive Analytics' : 'Alerts';
+        const titles = {
+            dashboard: 'Dashboard', codegen: 'Code Generator',
+            analytics: 'Predictive Analytics', alerts: 'Alerts',
+            ml: 'ML Training', ota: 'OTA Updates'
+        };
+        document.getElementById('page-title').textContent = titles[tab] || tab;
     });
 });
 
@@ -32,12 +34,13 @@ updateClock();
 // ── Simulation Controls ─────────────────────────────────────────────────────
 document.getElementById('btn-start-sim').addEventListener('click', async () => {
     try {
-        const res = await fetch(`${API_BASE}/vehicle/simulate/start`, { method: 'POST' });
+        const variant = document.getElementById('variant-select').value;
+        const res = await fetch(`${API_BASE}/vehicle/simulate/start?variant=${variant}`, { method: 'POST' });
         if (res.ok) {
             document.getElementById('btn-start-sim').style.display = 'none';
             document.getElementById('btn-stop-sim').style.display = 'block';
             const pill = document.getElementById('sim-status');
-            pill.textContent = '● Running';
+            pill.textContent = `● Running (${variant})`;
             pill.classList.add('running');
             startPolling();
         }
@@ -58,15 +61,70 @@ document.getElementById('btn-stop-sim').addEventListener('click', async () => {
     } catch (err) { console.error('Stop sim failed:', err); }
 });
 
-// ── Data Polling ────────────────────────────────────────────────────────────
+// ── WebSocket + Polling ─────────────────────────────────────────────────────
+let ws = null;
+let wsConnected = false;
+
+function connectWebSocket() {
+    try {
+        const wsUrl = API_BASE.replace(/^http/, 'ws') + '/ws/telemetry';
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+            wsConnected = true;
+            console.log('WebSocket connected — live streaming');
+            stopPolling(); // Stop HTTP polling, WS takes over
+        };
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'telemetry' && msg.data) {
+                    updateDashboardFromWS(msg.data);
+                }
+            } catch (e) { /* ignore parse errors */ }
+        };
+        ws.onclose = () => {
+            wsConnected = false;
+            ws = null;
+            console.log('WebSocket disconnected — falling back to polling');
+            startPolling();
+        };
+        ws.onerror = () => { ws.close(); };
+    } catch (e) {
+        console.log('WebSocket not available, using polling');
+    }
+}
+
+function updateDashboardFromWS(data) {
+    // Re-use the existing updateDashboard by reshaping WS data
+    const shaped = {
+        speed: data.speed,
+        battery: {
+            soc: data.battery_soc, voltage: data.battery_voltage,
+            temperature: data.battery_temp, health_status: data.battery_health
+        },
+        tires: data.tires,
+        engine_status: data.engine_status,
+        odometer: data.odometer,
+        timestamp: data.timestamp,
+        vehicle_variant: data.vehicle_variant,
+        drivetrain: { throttle_position: data.throttle, brake_position: data.brake, gear: data.gear },
+        ev_status: { ev_range: data.ev_range },
+    };
+    updateDashboard(shaped);
+}
+
 function startPolling() {
     if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(fetchTelemetry, 1000);
-    fetchTelemetry();
+    if (!wsConnected) {
+        pollInterval = setInterval(fetchTelemetry, 1000);
+        fetchTelemetry();
+    }
+    connectWebSocket(); // Always try WS upgrade
 }
 
 function stopPolling() {
     if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    if (ws) { try { ws.close(); } catch (e) { } ws = null; wsConnected = false; }
 }
 
 async function fetchTelemetry() {
@@ -247,7 +305,6 @@ async function fetchPredictiveAnalysis() {
         if (!res.ok) return;
         const data = await res.json();
 
-        // Update Predictions list
         const predList = document.getElementById('predictions-list');
         if (data.predictions && data.predictions.length > 0) {
             predList.innerHTML = data.predictions.map(p => `
@@ -261,15 +318,12 @@ async function fetchPredictiveAnalysis() {
             predList.innerHTML = '<p class="placeholder-text">All readings nominal. No warnings.</p>';
         }
 
-        // Update Driving Score
         if (data.driving_score) {
             const ds = data.driving_score;
             document.getElementById('overall-score').textContent = Math.round(ds.overall);
             document.getElementById('score-speed').textContent = Math.round(ds.speed);
             document.getElementById('score-braking').textContent = Math.round(ds.braking);
             document.getElementById('score-efficiency').textContent = Math.round(ds.efficiency);
-
-            // Color the score circle based on value
             const circle = document.querySelector('.score-circle');
             if (circle) {
                 const score = ds.overall;
@@ -280,3 +334,215 @@ async function fetchPredictiveAnalysis() {
 }
 
 setInterval(fetchPredictiveAnalysis, 3000);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Chart.js Trend Charts
+// ═══════════════════════════════════════════════════════════════════════════
+let speedBatteryChart = null;
+let tireChart = null;
+
+function initCharts() {
+    if (typeof Chart === 'undefined') return;
+
+    const commonOptions = {
+        responsive: true,
+        animation: { duration: 300 },
+        scales: {
+            x: {
+                display: true, title: { display: true, text: 'Time', color: '#94a3b8' },
+                ticks: { color: '#64748b', maxTicksLimit: 10 }, grid: { color: 'rgba(148,163,184,0.1)' }
+            },
+            y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' } }
+        },
+        plugins: { legend: { labels: { color: '#e2e8f0', usePointStyle: true } } }
+    };
+
+    const ctx1 = document.getElementById('chart-speed-battery');
+    if (ctx1) {
+        speedBatteryChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Speed (km/h)', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.3, pointRadius: 0 },
+                    { label: 'Battery SoC (%)', data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', fill: true, tension: 0.3, pointRadius: 0 },
+                ]
+            },
+            options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, min: 0, max: 150 } } }
+        });
+    }
+
+    const ctx2 = document.getElementById('chart-tires');
+    if (ctx2) {
+        tireChart = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'FL', data: [], borderColor: '#3b82f6', tension: 0.3, pointRadius: 0 },
+                    { label: 'FR', data: [], borderColor: '#8b5cf6', tension: 0.3, pointRadius: 0 },
+                    { label: 'RL', data: [], borderColor: '#f59e0b', tension: 0.3, pointRadius: 0 },
+                    { label: 'RR', data: [], borderColor: '#ef4444', tension: 0.3, pointRadius: 0 },
+                ]
+            },
+            options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, min: 15, max: 40, title: { display: true, text: 'PSI', color: '#94a3b8' } } } }
+        });
+    }
+}
+
+async function fetchHistory() {
+    try {
+        const res = await fetch(`${API_BASE}/vehicle/history?limit=60`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.history || data.history.length === 0) return;
+
+        const labels = data.history.map((_, i) => `${i}s`);
+
+        if (speedBatteryChart) {
+            speedBatteryChart.data.labels = labels;
+            speedBatteryChart.data.datasets[0].data = data.history.map(h => h.speed);
+            speedBatteryChart.data.datasets[1].data = data.history.map(h => h.battery_soc);
+            speedBatteryChart.update('none');
+        }
+
+        if (tireChart) {
+            tireChart.data.labels = labels;
+            tireChart.data.datasets[0].data = data.history.map(h => h.tire_fl);
+            tireChart.data.datasets[1].data = data.history.map(h => h.tire_fr);
+            tireChart.data.datasets[2].data = data.history.map(h => h.tire_rl);
+            tireChart.data.datasets[3].data = data.history.map(h => h.tire_rr);
+            tireChart.update('none');
+        }
+    } catch (err) { console.error('History fetch error:', err); }
+}
+
+// Initialize charts after Chart.js loads
+window.addEventListener('load', () => {
+    setTimeout(initCharts, 100);
+});
+setInterval(fetchHistory, 2000);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ML Training Controls
+// ═══════════════════════════════════════════════════════════════════════════
+document.getElementById('btn-train-ml').addEventListener('click', async () => {
+    const samples = document.getElementById('ml-samples').value;
+    const statusEl = document.getElementById('ml-status');
+    const btn = document.getElementById('btn-train-ml');
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Training...';
+    statusEl.innerHTML = '<div class="status-dot training"></div><span>Training in progress...</span>';
+
+    try {
+        const res = await fetch(`${API_BASE}/ml/train?num_sequences=${samples}`, { method: 'POST' });
+        const data = await res.json();
+        statusEl.innerHTML = `<div class="status-dot success"></div><span>${data.message || 'Training started'}</span>`;
+
+        // Poll for completion
+        const pollStatus = setInterval(async () => {
+            try {
+                const sRes = await fetch(`${API_BASE}/ml/status`);
+                const sData = await sRes.json();
+                if (sData.models_ready) {
+                    clearInterval(pollStatus);
+                    statusEl.innerHTML = '<div class="status-dot success"></div><span>✅ Models trained and ready!</span>';
+                    btn.disabled = false;
+                    btn.textContent = '🚀 Retrain Models';
+                    fetchMLPredictions();
+                }
+            } catch (e) { /* continue polling */ }
+        }, 2000);
+    } catch (err) {
+        statusEl.innerHTML = `<div class="status-dot error"></div><span>Error: ${err.message}</span>`;
+        btn.disabled = false;
+        btn.textContent = '🚀 Train Models';
+    }
+});
+
+document.getElementById('btn-ml-predict').addEventListener('click', fetchMLPredictions);
+
+async function fetchMLPredictions() {
+    const container = document.getElementById('ml-predictions');
+    try {
+        const res = await fetch(`${API_BASE}/ml/predict`);
+        const data = await res.json();
+
+        if (data.error) {
+            container.innerHTML = `<p class="placeholder-text">${data.error}</p>`;
+            return;
+        }
+
+        let html = '';
+        if (data.battery_depletion) {
+            const b = data.battery_depletion;
+            html += `<div class="alert-item"><div class="alert-type">🔋 Battery Depletion</div>
+                     <div class="alert-msg">Predicted: ${b.predicted_minutes_remaining?.toFixed(1) || 'N/A'} min remaining</div></div>`;
+        }
+        if (data.tire_wear) {
+            const t = data.tire_wear;
+            html += `<div class="alert-item"><div class="alert-type">🛞 Tire Wear</div>
+                     <div class="alert-msg">Wear score: ${t.wear_score?.toFixed(2) || 'N/A'}</div></div>`;
+        }
+        if (data.anomaly_detection) {
+            const a = data.anomaly_detection;
+            html += `<div class="alert-item ${a.is_anomaly ? 'critical' : ''}"><div class="alert-type">⚠️ Anomaly Detection</div>
+                     <div class="alert-msg">${a.is_anomaly ? '🔴 Anomaly detected!' : '🟢 Normal behavior'} (score: ${a.anomaly_score?.toFixed(3) || 'N/A'})</div></div>`;
+        }
+        container.innerHTML = html || '<p class="placeholder-text">No predictions available. Ensure simulation is running.</p>';
+    } catch (err) {
+        container.innerHTML = `<p class="placeholder-text">Error fetching predictions: ${err.message}</p>`;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OTA Update Controls
+// ═══════════════════════════════════════════════════════════════════════════
+document.getElementById('btn-ota-deploy').addEventListener('click', async () => {
+    const updateType = document.getElementById('ota-type').value;
+    const description = document.getElementById('ota-desc').value;
+    const payloadStr = document.getElementById('ota-payload').value;
+    const statusEl = document.getElementById('ota-status');
+
+    let payload;
+    try {
+        payload = payloadStr ? JSON.parse(payloadStr) : {};
+    } catch (e) {
+        statusEl.innerHTML = '<div class="alert-item critical"><div class="alert-msg">Invalid JSON payload</div></div>';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/ota/deploy`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ update_type: updateType, payload, description }),
+        });
+        const data = await res.json();
+        statusEl.innerHTML = `<div class="alert-item"><div class="alert-type">✅ Deployed v${data.version}</div>
+                              <div class="alert-msg">${data.update?.applied || 'Success'}</div></div>`;
+        fetchOTAHistory();
+    } catch (err) {
+        statusEl.innerHTML = `<div class="alert-item critical"><div class="alert-msg">Deploy failed: ${err.message}</div></div>`;
+    }
+});
+
+async function fetchOTAHistory() {
+    try {
+        const res = await fetch(`${API_BASE}/ota/history`);
+        const data = await res.json();
+        document.getElementById('ota-version').textContent = `Current Version: v${data.current_version}`;
+
+        const container = document.getElementById('ota-history');
+        if (data.history && data.history.length > 0) {
+            container.innerHTML = data.history.map(h => `
+                <div class="alert-item">
+                    <div class="alert-type">v${h.version} — ${h.update_type}</div>
+                    <div class="alert-msg">${h.description}</div>
+                    <div class="alert-time">${h.applied || ''} · ${new Date(h.deployed_at).toLocaleTimeString()}</div>
+                </div>
+            `).join('');
+        }
+    } catch (err) { console.error('OTA history error:', err); }
+}

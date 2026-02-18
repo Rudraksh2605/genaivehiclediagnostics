@@ -36,6 +36,14 @@
                 <span>Alerts</span>
                 <span class="badge" id="alert-badge">0</span>
             </a>
+            <a href="#" class="nav-item" data-tab="ml" id="nav-ml">
+                <span class="nav-icon">🧠</span>
+                <span>ML Training</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="ota" id="nav-ota">
+                <span class="nav-icon">🔄</span>
+                <span>OTA Updates</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <div class="variant-selector">
@@ -176,6 +184,18 @@
 
         <!-- ═══ Predictive Analytics Tab ═══ -->
         <section class="tab-content" id="tab-analytics">
+            <!-- Trend Charts Row -->
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-label">📈 Speed & Battery Trends</div>
+                    <canvas id="chart-speed-battery" height="200"></canvas>
+                </div>
+                <div class="card">
+                    <div class="card-label">📈 Tire Pressure Trends</div>
+                    <canvas id="chart-tires" height="200"></canvas>
+                </div>
+            </div>
+            <!-- Predictions Row -->
             <div class="grid grid-2">
                 <div class="card" id="card-predictions">
                     <div class="card-label">📈 Predictions</div>
@@ -206,8 +226,74 @@
                 </div>
             </div>
         </section>
+
+        <!-- ═══ ML Training Tab ═══ -->
+        <section class="tab-content" id="tab-ml">
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-label">🧠 ML Model Training</div>
+                    <p class="card-desc">Train Scikit-Learn models for battery depletion prediction, tire wear detection, and anomaly detection using simulated vehicle data.</p>
+                    <div class="ml-controls">
+                        <div class="ml-option">
+                            <label>Training Samples</label>
+                            <input type="number" id="ml-samples" value="2000" min="100" max="50000" step="100">
+                        </div>
+                        <button id="btn-train-ml" class="btn btn-primary">🚀 Train Models</button>
+                    </div>
+                    <div class="ml-status" id="ml-status">
+                        <div class="status-dot idle"></div>
+                        <span>No models trained yet</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-label">🔮 ML Predictions</div>
+                    <div id="ml-predictions" class="predictions-list">
+                        <p class="placeholder-text">Train models first, then start simulation to see predictions.</p>
+                    </div>
+                    <button id="btn-ml-predict" class="btn btn-secondary" style="margin-top:12px">Refresh Predictions</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ OTA Updates Tab ═══ -->
+        <section class="tab-content" id="tab-ota">
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-label">🔄 Deploy OTA Update</div>
+                    <p class="card-desc">Simulate deploying a new configuration or module to the running vehicle system.</p>
+                    <div class="ota-form">
+                        <div class="ml-option">
+                            <label>Update Type</label>
+                            <select id="ota-type">
+                                <option value="signal_config">Signal Config</option>
+                                <option value="parameter_update">Parameter Update</option>
+                                <option value="code_module">Code Module</option>
+                            </select>
+                        </div>
+                        <div class="ml-option">
+                            <label>Description</label>
+                            <input type="text" id="ota-desc" placeholder="e.g. Add new temperature sensor">
+                        </div>
+                        <div class="ml-option">
+                            <label>Payload JSON</label>
+                            <textarea id="ota-payload" rows="3" placeholder='{"id":"temp_sensor","name":"Cabin Temp","unit":"°C","min":0,"max":50,"normal_range":[18,28],"ui_widget":"gauge"}'></textarea>
+                        </div>
+                        <button id="btn-ota-deploy" class="btn btn-primary">🚀 Deploy Update</button>
+                    </div>
+                    <div class="ota-status" id="ota-status"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">📋 OTA Update History</div>
+                    <div class="ota-version" id="ota-version">Current Version: v1</div>
+                    <div id="ota-history" class="alerts-list">
+                        <p class="placeholder-text">No OTA updates deployed yet.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

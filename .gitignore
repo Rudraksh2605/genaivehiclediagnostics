@@ -40,3 +40,7 @@ dataset_tire_wear.csv
 *.tmp
 coverage.xml
 htmlcov/
+
+# Data / Persistence
+data/
+backend/ml/saved_models/

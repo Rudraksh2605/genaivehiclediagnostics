@@ -51,6 +51,7 @@ class VehicleSimulator:
         self._task: Optional[asyncio.Task] = None
         self._running = False
         self._tick_count = 0
+        self._variant = "EV"  # EV, Hybrid, ICE
 
         # Simulation state variables — original
         self._speed = 0.0
@@ -63,6 +64,7 @@ class VehicleSimulator:
         self._tire_rr = 32.2
         self._odometer = 15000.0
         self._speed_direction = 1  # 1 = accelerating, -1 = decelerating
+        self._fuel_level = 100.0  # ICE/Hybrid fuel %
 
         # New signal state variables
         self._throttle = 0.0
@@ -78,7 +80,7 @@ class VehicleSimulator:
     def is_running(self) -> bool:
         return self._running
 
-    async def start(self) -> SimulationStatus:
+    async def start(self, variant: str = "EV") -> SimulationStatus:
         """Start the simulation background task."""
         if self._running:
             return SimulationStatus(
@@ -88,19 +90,26 @@ class VehicleSimulator:
                 message="Simulator already running",
             )
 
+        self._variant = variant.upper() if variant else "EV"
+        self.store.vehicle_variant = self._variant
         self._running = True
         self._tick_count = 0
         start_time = datetime.utcnow().isoformat()
+
+        # Reset ICE-specific state
+        if self._variant == "ICE":
+            self._battery_soc = 100.0  # Starter battery, stays stable
+            self._fuel_level = 100.0
 
         self.store.simulation = SimulationStatus(
             running=True,
             tick_count=0,
             start_time=start_time,
-            message="Simulator started",
+            message=f"Simulator started (variant: {self._variant})",
         )
 
         self._task = asyncio.create_task(self._simulation_loop())
-        logger.info("Vehicle simulator started")
+        logger.info(f"Vehicle simulator started (variant={self._variant})")
 
         return self.store.simulation
 
@@ -206,28 +215,48 @@ class VehicleSimulator:
         # Tend back to center
         self._steering *= 0.95
 
-        # --- Battery simulation ---
-        self._battery_soc -= random.uniform(0.05, 0.2)
-        if random.random() < 0.02:
-            self._battery_soc -= random.uniform(5.0, 8.0)
-            logger.debug("Battery rapid drop event triggered")
-
-        self._battery_soc = max(5.0, min(100.0, self._battery_soc))
-        self._battery_voltage = 350 + (self._battery_soc / 100) * 50
-        self._battery_temp = 25 + random.uniform(-2, 5)
+        # --- Battery simulation (variant-aware) ---
+        if self._variant == "ICE":
+            # ICE: starter battery stays stable (12V system)
+            self._battery_soc = max(90, 100 - random.uniform(0, 0.01) * self._tick_count)
+            self._battery_voltage = 12.0 + (self._battery_soc / 100) * 2
+            self._battery_temp = 25 + random.uniform(-2, 3)
+            self._ev_range = 0.0
+            regen = False
+            # Fuel consumption
+            self._fuel_level -= random.uniform(0.02, 0.1)
+            self._fuel_level = max(0, self._fuel_level)
+        elif self._variant == "Hybrid":
+            # Hybrid: slower battery drain, fuel assists
+            self._battery_soc -= random.uniform(0.02, 0.08)
+            if random.random() < 0.01:
+                self._battery_soc -= random.uniform(2.0, 4.0)
+            self._battery_soc = max(15.0, min(100.0, self._battery_soc))
+            self._battery_voltage = 350 + (self._battery_soc / 100) * 50
+            self._battery_temp = 25 + random.uniform(-2, 5)
+            efficiency = 4.0 - (self._speed / 120)
+            self._ev_range = max(0, self._battery_soc * efficiency)
+            regen = self._brake > 30
+            self._fuel_level -= random.uniform(0.01, 0.05)
+            self._fuel_level = max(0, self._fuel_level)
+        else:
+            # EV: original behavior
+            self._battery_soc -= random.uniform(0.05, 0.2)
+            if random.random() < 0.02:
+                self._battery_soc -= random.uniform(5.0, 8.0)
+                logger.debug("Battery rapid drop event triggered")
+            self._battery_soc = max(5.0, min(100.0, self._battery_soc))
+            self._battery_voltage = 350 + (self._battery_soc / 100) * 50
+            self._battery_temp = 25 + random.uniform(-2, 5)
+            efficiency = 5.5 - (self._speed / 100)
+            self._ev_range = max(0, self._battery_soc * efficiency)
+            regen = self._brake > 30
 
         health_status = "Good"
         if self._battery_soc < 20:
             health_status = "Low"
         elif self._battery_soc < 50:
             health_status = "Fair"
-
-        # --- EV Range (derived from SoC and driving) ---
-        efficiency = 5.5 - (self._speed / 100)  # km per % SoC
-        self._ev_range = max(0, self._battery_soc * efficiency)
-
-        # Regen braking when braking > 30%
-        regen = self._brake > 30
 
         # --- Tire pressure simulation ---
         self._tire_fl += random.uniform(-0.1, 0.1)
@@ -295,8 +324,8 @@ class VehicleSimulator:
                 longitude=round(self._gps_lon, 6),
             ),
             odometer=round(self._odometer, 1),
-            engine_status="running",
-            vehicle_variant="EV",
+            engine_status="running" if self._variant == "ICE" else "motor_running",
+            vehicle_variant=self._variant,
         )
 
 

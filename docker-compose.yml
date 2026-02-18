@@ -1,7 +1,8 @@
 version: "3.8"
 
 services:
-  backend:
+  # ── Telemetry & Simulation Service ──────────────────────────────────────────
+  telemetry-service:
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,10 +15,63 @@ services:
       - PYTHONUNBUFFERED=1
       - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - SERVICE_NAME=telemetry
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Uncomment to add a database in the future
+  # ── GenAI Code Generation Service ───────────────────────────────────────────
+  codegen-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - SERVICE_NAME=codegen
+      - SERVICE_PORT=8001
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8001 --reload
+    restart: unless-stopped
+    depends_on:
+      telemetry-service:
+        condition: service_healthy
+
+  # ── ML / Predictive Analytics Service ───────────────────────────────────────
+  ml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVICE_NAME=ml
+      - SERVICE_PORT=8002
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8002 --reload
+    restart: unless-stopped
+    depends_on:
+      telemetry-service:
+        condition: service_healthy
+
+  # ── HMI / Web Dashboard ────────────────────────────────────────────────────
+  dashboard:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./web-dashboard:/usr/share/nginx/html:ro
+    restart: unless-stopped
+    depends_on:
+      - telemetry-service
+
+  # ── Uncomment to add a database ────────────────────────────────────────────
   # db:
   #   image: postgres:15
   #   environment:

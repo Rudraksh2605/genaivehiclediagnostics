@@ -59,11 +59,24 @@ class DataStore:
         # Historical tire pressure for wear detection
         self.tire_history: List[dict] = []
 
+        # Full telemetry history for trend charts (up to 300 snapshots = 5 min)
+        self.telemetry_history: List[dict] = []
+
+        # OTA update history
+        self.ota_history: List[dict] = []
+        self.ota_version: int = 1
+
+        # Current vehicle variant
+        self.vehicle_variant: str = "EV"
+
         # Loaded signal configuration
         self.signal_configs: List[SignalConfig] = []
 
         # Load signal config from file
         self._load_signal_config()
+
+        # Load persisted history from SQLite
+        self._load_persisted_data()
 
         logger.info("DataStore initialized with mock fallback data")
 
@@ -111,40 +124,49 @@ class DataStore:
         """Update the latest telemetry snapshot and track history."""
         self.telemetry = telemetry
 
+        now = datetime.utcnow().timestamp()
+
         # Track battery history for rapid-drop detection
-        self.battery_history.append({
-            "timestamp": datetime.utcnow().timestamp(),
-            "soc": telemetry.battery.soc,
-        })
-        # Keep only last 60 seconds of history
-        cutoff = datetime.utcnow().timestamp() - 60
-        self.battery_history = [
-            h for h in self.battery_history if h["timestamp"] > cutoff
-        ]
+        self.battery_history.append({"timestamp": now, "soc": telemetry.battery.soc})
+        self.battery_history = [h for h in self.battery_history if h["timestamp"] > now - 300]
 
         # Track speed history for sustained-speed detection
-        self.speed_history.append({
-            "timestamp": datetime.utcnow().timestamp(),
-            "speed": telemetry.speed,
-        })
-        # Keep only last 30 seconds of history
-        speed_cutoff = datetime.utcnow().timestamp() - 30
-        self.speed_history = [
-            h for h in self.speed_history if h["timestamp"] > speed_cutoff
-        ]
+        self.speed_history.append({"timestamp": now, "speed": telemetry.speed})
+        self.speed_history = [h for h in self.speed_history if h["timestamp"] > now - 300]
 
         # Track tire history for wear prediction
         self.tire_history.append({
-            "timestamp": datetime.utcnow().timestamp(),
+            "timestamp": now,
             "front_left": telemetry.tires.front_left,
             "front_right": telemetry.tires.front_right,
             "rear_left": telemetry.tires.rear_left,
             "rear_right": telemetry.tires.rear_right,
         })
-        tire_cutoff = datetime.utcnow().timestamp() - 60
-        self.tire_history = [
-            h for h in self.tire_history if h["timestamp"] > tire_cutoff
-        ]
+        self.tire_history = [h for h in self.tire_history if h["timestamp"] > now - 300]
+
+        # Track full telemetry snapshots for trend charts (max 300 = 5 min)
+        self.telemetry_history.append({
+            "timestamp": telemetry.timestamp,
+            "speed": telemetry.speed,
+            "battery_soc": telemetry.battery.soc,
+            "battery_temp": telemetry.battery.temperature,
+            "tire_fl": telemetry.tires.front_left,
+            "tire_fr": telemetry.tires.front_right,
+            "tire_rl": telemetry.tires.rear_left,
+            "tire_rr": telemetry.tires.rear_right,
+            "throttle": telemetry.drivetrain.throttle_position,
+            "brake": telemetry.drivetrain.brake_position,
+            "ev_range": telemetry.ev_status.ev_range,
+        })
+        if len(self.telemetry_history) > 300:
+            self.telemetry_history = self.telemetry_history[-300:]
+
+        # Persist to SQLite
+        try:
+            from backend.services.persistence import get_persistence
+            get_persistence().save_telemetry(self.telemetry_history[-1])
+        except Exception:
+            pass  # Persistence is best-effort
 
     def add_alert(self, alert: AlertModel) -> None:
         """Add an alert to the history, avoiding near-duplicate alerts."""
@@ -165,6 +187,21 @@ class DataStore:
             self.alerts = self.alerts[-100:]
         logger.info(f"Alert added: [{alert.severity.value}] {alert.message}")
 
+        # Persist alert to SQLite
+        try:
+            from backend.services.persistence import get_persistence
+            get_persistence().save_alert({
+                "timestamp": alert.timestamp,
+                "alert_type": alert.alert_type,
+                "severity": alert.severity.value,
+                "signal": alert.signal,
+                "message": alert.message,
+                "value": alert.value,
+                "threshold": alert.threshold,
+            })
+        except Exception:
+            pass
+
     def get_alerts(self, limit: int = 50) -> List[AlertModel]:
         """Return the most recent alerts."""
         return list(reversed(self.alerts[-limit:]))
@@ -173,6 +210,22 @@ class DataStore:
         """Clear all alerts."""
         self.alerts.clear()
 
+    def get_telemetry_history(self, limit: int = 60) -> List[dict]:
+        """Return recent telemetry snapshots for trend charting."""
+        return self.telemetry_history[-limit:]
+
+    def _load_persisted_data(self) -> None:
+        """Load telemetry history from SQLite on startup."""
+        try:
+            from backend.services.persistence import get_persistence
+            pm = get_persistence()
+            saved = pm.load_telemetry_history(limit=300)
+            if saved:
+                self.telemetry_history = saved
+                logger.info(f"Restored {len(saved)} telemetry snapshots from disk")
+        except Exception as e:
+            logger.debug(f"Could not load persisted data: {e}")
+
     def reset(self) -> None:
         """Reset the data store to initial state."""
         self.telemetry = self._get_mock_telemetry()
@@ -180,5 +233,7 @@ class DataStore:
         self.battery_history.clear()
         self.speed_history.clear()
         self.tire_history.clear()
+        self.telemetry_history.clear()
+        self.ota_history.clear()
         self.simulation = SimulationStatus()
         logger.info("DataStore reset to initial state")

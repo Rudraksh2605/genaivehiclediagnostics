@@ -3,7 +3,7 @@ Simulation control API routes.
 Endpoints to start, stop, and check status of the vehicle data simulator.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from backend.simulator.vehicle_simulator import get_simulator
 from backend.models.telemetry import SimulationStatus
@@ -12,10 +12,12 @@ router = APIRouter(prefix="/vehicle/simulate", tags=["Simulation"])
 
 
 @router.post("/start", summary="Start vehicle data simulation")
-async def start_simulation() -> SimulationStatus:
+async def start_simulation(
+    variant: str = Query(default="EV", description="Vehicle variant: EV, Hybrid, ICE")
+) -> SimulationStatus:
     """Start generating simulated vehicle telemetry data."""
     simulator = get_simulator()
-    return await simulator.start()
+    return await simulator.start(variant=variant)
 
 
 @router.post("/stop", summary="Stop vehicle data simulation")
