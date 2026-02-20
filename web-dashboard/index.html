@@ -1,15 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="GenAI Vehicle Health & Diagnostics Dashboard — Real-time monitoring, predictive analytics, and AI-powered code generation for Software Defined Vehicles.">
+    <meta name="description"
+        content="GenAI Vehicle Health & Diagnostics Dashboard — Real-time monitoring, predictive analytics, and AI-powered code generation for Software Defined Vehicles.">
     <title>Vehicle Health & Diagnostics — HMI Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <!-- ═══ Sidebar ═══ -->
     <aside class="sidebar" id="sidebar">
@@ -31,11 +36,7 @@
                 <span class="nav-icon">📈</span>
                 <span>Predictive</span>
             </a>
-            <a href="#" class="nav-item" data-tab="alerts" id="nav-alerts">
-                <span class="nav-icon">🔔</span>
-                <span>Alerts</span>
-                <span class="badge" id="alert-badge">0</span>
-            </a>
+
             <a href="#" class="nav-item" data-tab="ml" id="nav-ml">
                 <span class="nav-icon">🧠</span>
                 <span>ML Training</span>
@@ -80,8 +81,8 @@
                     <div class="card-label">Speed</div>
                     <div class="gauge-container">
                         <svg class="speed-gauge" viewBox="0 0 200 120">
-                            <path class="gauge-bg" d="M20,110 A80,80 0 0,1 180,110"/>
-                            <path class="gauge-fill" id="speed-arc" d="M20,110 A80,80 0 0,1 180,110"/>
+                            <path class="gauge-bg" d="M20,110 A80,80 0 0,1 180,110" />
+                            <path class="gauge-fill" id="speed-arc" d="M20,110 A80,80 0 0,1 180,110" />
                         </svg>
                         <div class="gauge-value"><span id="speed-val">0</span><small>km/h</small></div>
                     </div>
@@ -108,10 +109,14 @@
                 <div class="card card-tires" id="card-tires">
                     <div class="card-label">Tire Pressure</div>
                     <div class="tire-grid">
-                        <div class="tire" id="tire-fl"><span class="tire-label">FL</span><span class="tire-val">32.0</span><small>PSI</small></div>
-                        <div class="tire" id="tire-fr"><span class="tire-label">FR</span><span class="tire-val">31.5</span><small>PSI</small></div>
-                        <div class="tire" id="tire-rl"><span class="tire-label">RL</span><span class="tire-val">31.8</span><small>PSI</small></div>
-                        <div class="tire" id="tire-rr"><span class="tire-label">RR</span><span class="tire-val">32.2</span><small>PSI</small></div>
+                        <div class="tire" id="tire-fl"><span class="tire-label">FL</span><span
+                                class="tire-val">32.0</span><small>PSI</small></div>
+                        <div class="tire" id="tire-fr"><span class="tire-label">FR</span><span
+                                class="tire-val">31.5</span><small>PSI</small></div>
+                        <div class="tire" id="tire-rl"><span class="tire-label">RL</span><span
+                                class="tire-val">31.8</span><small>PSI</small></div>
+                        <div class="tire" id="tire-rr"><span class="tire-label">RR</span><span
+                                class="tire-val">32.2</span><small>PSI</small></div>
                     </div>
                 </div>
                 <div class="card card-drivetrain" id="card-drivetrain">
@@ -119,12 +124,16 @@
                     <div class="drivetrain-grid">
                         <div class="dt-item">
                             <div class="dt-label">Throttle</div>
-                            <div class="bar-container"><div class="bar bar-throttle" id="throttle-bar"></div></div>
+                            <div class="bar-container">
+                                <div class="bar bar-throttle" id="throttle-bar"></div>
+                            </div>
                             <span class="dt-val" id="throttle-val">0%</span>
                         </div>
                         <div class="dt-item">
                             <div class="dt-label">Brake</div>
-                            <div class="bar-container"><div class="bar bar-brake" id="brake-bar"></div></div>
+                            <div class="bar-container">
+                                <div class="bar bar-brake" id="brake-bar"></div>
+                            </div>
                             <span class="dt-val" id="brake-val">0%</span>
                         </div>
                         <div class="dt-item">
@@ -152,6 +161,15 @@
                     <div class="big-number"><span id="odo-val">0</span><small>km</small></div>
                 </div>
             </div>
+
+            <!-- Row 4: Live Alerts -->
+            <div class="card" style="margin-top: 1rem;">
+                <div class="card-label">🔔 Active Alerts <span class="badge" id="alert-badge"
+                        style="margin-left: 8px;">0</span></div>
+                <div id="alerts-list" class="alerts-list" style="max-height: 250px; overflow-y: auto;">
+                    <p class="placeholder-text">No alerts yet. Start the simulation.</p>
+                </div>
+            </div>
         </section>
 
         <!-- ═══ Code Generator Tab ═══ -->
@@ -159,8 +177,10 @@
             <div class="codegen-panel">
                 <div class="card codegen-input-card">
                     <div class="card-label">🤖 GenAI Code Generation</div>
-                    <p class="card-desc">Enter a natural-language vehicle diagnostics requirement to generate service code in multiple languages.</p>
-                    <textarea id="codegen-input" rows="3" placeholder="e.g. Monitor vehicle speed, battery SoC, and tire pressure and generate alerts on abnormal behavior."></textarea>
+                    <p class="card-desc">Enter a natural-language vehicle diagnostics requirement to generate service
+                        code in multiple languages.</p>
+                    <textarea id="codegen-input" rows="3"
+                        placeholder="e.g. Monitor vehicle speed, battery SoC, and tire pressure and generate alerts on abnormal behavior."></textarea>
                     <div class="codegen-options">
                         <select id="codegen-lang">
                             <option value="python">Python / FastAPI</option>
@@ -172,12 +192,33 @@
                         <button id="btn-gen-all" class="btn btn-accent">Generate All Languages</button>
                         <button id="btn-gen-design" class="btn btn-secondary">Generate Design</button>
                         <button id="btn-gen-test" class="btn btn-secondary">Generate Tests</button>
+                        <button id="btn-compliance" class="btn btn-warning"
+                            style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;font-weight:600">✅
+                            Check MISRA Compliance</button>
+                        <button id="btn-validate" class="btn btn-primary"
+                            style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);font-weight:600">🔄 Validate &
+                            Auto-Fix</button>
+                        <button id="btn-build" class="btn btn-secondary"
+                            style="background:linear-gradient(135deg,#06b6d4,#0891b2);font-weight:600">🛠️ Build
+                            Check</button>
                     </div>
                 </div>
                 <div class="card codegen-output-card" id="codegen-output-card" style="display:none">
                     <div class="card-label" id="codegen-output-label">Generated Code</div>
                     <div class="codegen-meta" id="codegen-meta"></div>
                     <pre class="code-output" id="codegen-output"></pre>
+                </div>
+                <div class="card" id="compliance-output-card" style="display:none">
+                    <div class="card-label" id="compliance-output-label">✅ MISRA + AUTOSAR Compliance Report</div>
+                    <div class="codegen-meta" id="compliance-meta"></div>
+                    <div id="compliance-results" class="alerts-list"></div>
+                </div>
+                <div class="card" id="validate-output-card" style="display:none">
+                    <div class="card-label" id="validate-output-label">🔄 Iterative Build & Validation Pipeline</div>
+                    <div class="codegen-meta" id="validate-meta"></div>
+                    <div id="validate-results" class="alerts-list"></div>
+                    <pre class="code-output" id="validate-code-output"
+                        style="display:none;max-height:400px;overflow:auto"></pre>
                 </div>
             </div>
         </section>
@@ -217,22 +258,15 @@
             </div>
         </section>
 
-        <!-- ═══ Alerts Tab ═══ -->
-        <section class="tab-content" id="tab-alerts">
-            <div class="card">
-                <div class="card-label">🔔 Active Alerts</div>
-                <div id="alerts-list" class="alerts-list">
-                    <p class="placeholder-text">No alerts yet. Start the simulation.</p>
-                </div>
-            </div>
-        </section>
+
 
         <!-- ═══ ML Training Tab ═══ -->
         <section class="tab-content" id="tab-ml">
             <div class="grid grid-2">
                 <div class="card">
                     <div class="card-label">🧠 ML Model Training</div>
-                    <p class="card-desc">Train Scikit-Learn models for battery depletion prediction, tire wear detection, and anomaly detection using simulated vehicle data.</p>
+                    <p class="card-desc">Train Scikit-Learn models for battery depletion prediction, tire wear
+                        detection, and anomaly detection using simulated vehicle data.</p>
                     <div class="ml-controls">
                         <div class="ml-option">
                             <label>Training Samples</label>
@@ -250,7 +284,8 @@
                     <div id="ml-predictions" class="predictions-list">
                         <p class="placeholder-text">Train models first, then start simulation to see predictions.</p>
                     </div>
-                    <button id="btn-ml-predict" class="btn btn-secondary" style="margin-top:12px">Refresh Predictions</button>
+                    <button id="btn-ml-predict" class="btn btn-secondary" style="margin-top:12px">Refresh
+                        Predictions</button>
                 </div>
             </div>
         </section>
@@ -260,7 +295,8 @@
             <div class="grid grid-2">
                 <div class="card">
                     <div class="card-label">🔄 Deploy OTA Update</div>
-                    <p class="card-desc">Simulate deploying a new configuration or module to the running vehicle system.</p>
+                    <p class="card-desc">Simulate deploying a new configuration or module to the running vehicle system.
+                    </p>
                     <div class="ota-form">
                         <div class="ml-option">
                             <label>Update Type</label>
@@ -276,7 +312,8 @@
                         </div>
                         <div class="ml-option">
                             <label>Payload JSON</label>
-                            <textarea id="ota-payload" rows="3" placeholder='{"id":"temp_sensor","name":"Cabin Temp","unit":"°C","min":0,"max":50,"normal_range":[18,28],"ui_widget":"gauge"}'></textarea>
+                            <textarea id="ota-payload" rows="3"
+                                placeholder='{"id":"temp_sensor","name":"Cabin Temp","unit":"°C","min":0,"max":50,"normal_range":[18,28],"ui_widget":"gauge"}'></textarea>
                         </div>
                         <button id="btn-ota-deploy" class="btn btn-primary">🚀 Deploy Update</button>
                     </div>
@@ -294,6 +331,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=10"></script>
 </body>
+
 </html>

@@ -17,9 +17,7 @@ from datetime import datetime
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 from genai_interpreter.llm_provider import (
-    get_provider,
-    record_metrics,
-    LLMCallMetrics,
+    get_provider, record_metrics, LLMCallMetrics, generate_with_fallback,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,50 +117,67 @@ def _generate_from_template(
     )
 
 
-# ── LLM-based generation ────────────────────────────────────────────────────
+# ── Per-Language LLM Prompts ─────────────────────────────────────────────────
 
-_LLM_CODE_PROMPT = """You are an expert automotive software engineer. Generate production-ready {language_name} source code for a Service-Oriented Architecture (SoA) vehicle diagnostics service.
+_LLM_PROMPTS = {
+    "cpp": """You are an expert C++ developer. Implement the following functionality with STRICT adherence to these constraints:
 
-REQUIREMENT: "{requirement}"
+FUNCTIONALITY: {requirement}
 
-EXTRACTED BLUEPRINT:
-- Signals: {signals}
-- Services: {services}
-- UI Components: {ui_components}
-- Alerts: {alerts}
+CONSTRAINTS:
+1. OUTPUT ONLY C++ CODE. Do not output any markdown blocks, explanations, notes, or concluding remarks.
+2. NO COMMENTS. Do not include any comments in the code whatsoever. No // lines, no /* */ blocks, no @brief tags.
+3. FOLLOW MISRA C++:2008 RULES silently. Ensure compliance (initialized variables, explicit constructors, enum underlying types, single exit point) but do NOT annotate or list any rules.
+4. THREAD SAFETY. Use std::mutex and std::lock_guard.
+5. NO WHITE SPACE/FORMATTING FLUFF. Keep code concise.
+6. Use <cstdint> for fixed-width types. No Boost.
 
-LANGUAGE: {language_name}
+START OUTPUT IMMEDIATELY WITH #include directives.""",
 
-RULES:
-1. Generate a complete, compilable/runnable source file
-2. Include proper data models for each signal
-3. Include a service interface with get/set methods
-4. Include thread safety (mutex/locks)
-5. Include proper documentation/comments
-{extra_rules}
+    "python": """You are an expert Python developer. Implement the following functionality with STRICT adherence to these constraints:
 
-Generate ONLY the source code, no explanations. Start with the appropriate file header/imports."""
+FUNCTIONALITY: {requirement}
 
+CONSTRAINTS:
+1. OUTPUT ONLY PYTHON CODE. Do not output any markdown blocks, explanations, notes, or concluding remarks.
+2. NO COMMENTS. Do not include any comments or docstrings in the code whatsoever. No # lines, no triple-quote blocks.
+3. USE TYPE HINTS on all function parameters and return types.
+4. USE PYDANTIC MODELS for data structures.
+5. USE FASTAPI for REST endpoints.
+6. THREAD SAFETY. Use threading.Lock where needed.
+7. NO WHITE SPACE/FORMATTING FLUFF. Keep code concise.
 
-def _get_extra_rules(language: str) -> str:
-    if language == "cpp":
-        return """6. Follow MISRA C++:2008 rules:
-   - All variables must be initialized (Rule 8-5-1)
-   - Use explicit constructors (Rule 12-1-1)
-   - Specify enum underlying types (Rule 7-2-2)
-   - No implicit type conversions (Rule 5-0-1)
-   - Single exit point per function (Rule 6-6-5)
-7. Use standard C++ (no Boost)
-8. Include <cstdint> for fixed-width types"""
-    elif language == "kotlin":
-        return """6. Use Kotlin data classes for models
-7. Use Retrofit annotations for API endpoints
-8. Follow Android/Kotlin conventions"""
-    elif language == "rust":
-        return """6. Use serde for serialization
-7. Use Arc<Mutex<>> for shared state
-8. Implement Default trait for data types"""
-    return "6. Use type hints and Pydantic models\n7. Use FastAPI for REST endpoints"
+START OUTPUT IMMEDIATELY WITH import statements.""",
+
+    "kotlin": """You are an expert Kotlin/Android developer. Implement the following functionality with STRICT adherence to these constraints:
+
+FUNCTIONALITY: {requirement}
+
+CONSTRAINTS:
+1. OUTPUT ONLY KOTLIN CODE. Do not output any markdown blocks, explanations, notes, or concluding remarks.
+2. NO COMMENTS. Do not include any comments in the code whatsoever. No // lines, no /* */ blocks, no KDoc.
+3. USE DATA CLASSES for models.
+4. USE RETROFIT ANNOTATIONS for API endpoints.
+5. FOLLOW ANDROID/KOTLIN CONVENTIONS.
+6. THREAD SAFETY. Use synchronized blocks or Mutex where needed.
+7. NO WHITE SPACE/FORMATTING FLUFF. Keep code concise.
+
+START OUTPUT IMMEDIATELY WITH package or import statements.""",
+
+    "rust": """You are an expert Rust developer. Implement the following functionality with STRICT adherence to these constraints:
+
+FUNCTIONALITY: {requirement}
+
+CONSTRAINTS:
+1. OUTPUT ONLY RUST CODE. Do not output any markdown blocks, explanations, notes, or concluding remarks.
+2. NO COMMENTS. Do not include any comments in the code whatsoever. No // lines, no /// doc comments.
+3. USE SERDE for serialization/deserialization.
+4. USE Arc<Mutex<>> for shared state and thread safety.
+5. IMPLEMENT Default trait for data types.
+6. NO WHITE SPACE/FORMATTING FLUFF. Keep code concise.
+
+START OUTPUT IMMEDIATELY WITH use statements.""",
+}
 
 
 def _generate_with_llm(
@@ -172,18 +187,12 @@ def _generate_with_llm(
 ) -> tuple[str, LLMCallMetrics]:
     """Generate code using an LLM provider."""
     lang_info = SUPPORTED_LANGUAGES[language]
-    prompt = _LLM_CODE_PROMPT.format(
-        language_name=lang_info["name"],
-        requirement=blueprint.get("raw_requirement", ""),
-        signals=", ".join(blueprint.get("signals", [])),
-        services=", ".join(blueprint.get("services", [])),
-        ui_components=", ".join(blueprint.get("ui_components", [])),
-        alerts=", ".join(blueprint.get("alerts", [])),
-        extra_rules=_get_extra_rules(language),
-    )
 
-    provider = get_provider(provider_name)
-    response = provider.generate(prompt)
+    prompt_template = _LLM_PROMPTS.get(language, _LLM_PROMPTS["python"])
+    requirement = blueprint.get("raw_requirement", "")
+    prompt = prompt_template.format(requirement=requirement)
+
+    response = generate_with_fallback(prompt)
     record_metrics(response.metrics)
 
     # Clean markdown code fences if present

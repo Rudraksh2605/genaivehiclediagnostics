@@ -12,6 +12,9 @@ FastAPI application that serves:
 import logging
 import json
 import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

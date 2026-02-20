@@ -17,7 +17,7 @@ from datetime import datetime
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
-from genai_interpreter.llm_provider import get_provider, record_metrics, LLMCallMetrics
+from genai_interpreter.llm_provider import get_provider, record_metrics, LLMCallMetrics, generate_with_fallback
 from genai_interpreter.code_generator import DEFAULT_UNITS
 
 logger = logging.getLogger(__name__)
@@ -127,19 +127,18 @@ def generate_tests(
     llm_metrics = None
 
     if use_llm:
-        provider = get_provider(provider_name)
-        if provider.name != "template":
-            try:
-                prompt = _TEST_PROMPT.format(
-                    language_name=lang_info["name"],
-                    requirement=blueprint.get("raw_requirement", ""),
-                    signals=", ".join(blueprint.get("signals", [])),
-                    alerts=", ".join(blueprint.get("alerts", [])),
-                    extra_rules=_get_test_extra_rules(language),
-                )
-                response = provider.generate(prompt)
-                record_metrics(response.metrics)
+        try:
+            prompt = _TEST_PROMPT.format(
+                language_name=lang_info["name"],
+                requirement=blueprint.get("raw_requirement", ""),
+                signals=", ".join(blueprint.get("signals", [])),
+                alerts=", ".join(blueprint.get("alerts", [])),
+                extra_rules=_get_test_extra_rules(language),
+            )
+            response = generate_with_fallback(prompt)
+            record_metrics(response.metrics)
 
+            if response.metrics.provider != "template":
                 code = response.text.strip()
                 if code.startswith("```"):
                     lines = code.split("\n")
@@ -157,12 +156,12 @@ def generate_tests(
                     code=code,
                     filename=f"test_vehicle_health_service{lang_info['ext']}",
                     test_count=test_count,
-                    generation_method=f"llm:{provider.name}",
+                    generation_method=f"llm:{response.metrics.provider}",
                     generation_time_ms=round(elapsed, 1),
                     llm_metrics=response.metrics,
                 )
-            except Exception as exc:
-                logger.warning(f"LLM test generation failed, using template: {exc}")
+        except Exception as exc:
+            logger.warning(f"LLM test generation failed, using template: {exc}")
 
     # Template fallback
     code = _generate_test_from_template(blueprint, language)

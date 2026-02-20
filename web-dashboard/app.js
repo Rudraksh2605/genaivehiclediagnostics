@@ -200,11 +200,20 @@ function updateTire(id, pressure) {
     else if (pressure < 28) el.classList.add('warning');
 }
 
-// ── Alerts Update ───────────────────────────────────────────────────────────
+// ── Alerts Update (flicker-free) ────────────────────────────────────────────
+let _lastAlertHash = '';
+
 function updateAlerts(alerts) {
     const container = document.getElementById('alerts-list');
     const badge = document.getElementById('alert-badge');
     badge.textContent = alerts.length;
+
+    // Build a hash of current alerts to detect actual changes
+    const alertHash = alerts.map(a => `${a.severity}|${a.alert_type}|${a.timestamp}`).join(';');
+
+    // Skip DOM update if nothing changed
+    if (alertHash === _lastAlertHash) return;
+    _lastAlertHash = alertHash;
 
     if (!alerts.length) {
         container.innerHTML = '<p class="placeholder-text">No alerts yet.</p>';
@@ -290,6 +299,256 @@ async function generateCode(mode) {
         output.textContent = 'Error: ' + err.message;
     }
 }
+
+// ── Compliance Check ────────────────────────────────────────────────────────
+document.getElementById('btn-compliance').addEventListener('click', async () => {
+    console.log('Compliance check button clicked');
+    const codeOutput = document.getElementById('codegen-output').textContent;
+    const compCard = document.getElementById('compliance-output-card');
+    const compMeta = document.getElementById('compliance-meta');
+    const compResults = document.getElementById('compliance-results');
+
+    // If no code generated yet, try generating C++ first
+    let codeToCheck = codeOutput;
+    if (!codeToCheck || codeToCheck === 'Generating...' || codeToCheck.startsWith('Error')) {
+        const req = document.getElementById('codegen-input').value.trim();
+        if (!req) { alert('Enter a requirement and generate C++ code first.'); return; }
+
+        // Auto-generate C++ code first
+        try {
+            const res = await fetch(`${API_BASE}/codegen/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requirement: req, language: 'cpp' }),
+            });
+            const data = await res.json();
+            codeToCheck = data.generated_code.code;
+            // Also show the generated code
+            const outputCard = document.getElementById('codegen-output-card');
+            outputCard.style.display = 'block';
+            document.getElementById('codegen-output-label').textContent = `Generated: ${data.generated_code.language_name}`;
+            document.getElementById('codegen-meta').textContent = `${data.generated_code.lines_of_code} lines · ${data.generated_code.generation_method} · ${data.generated_code.generation_time_ms}ms`;
+            document.getElementById('codegen-output').textContent = codeToCheck;
+        } catch (err) {
+            alert('Failed to generate code: ' + err.message);
+            return;
+        }
+    }
+
+    compCard.style.display = 'block';
+    compMeta.textContent = 'Checking compliance...';
+    compResults.innerHTML = '<p class="placeholder-text">Analyzing code against MISRA C++:2008 & AUTOSAR rules...</p>';
+
+    try {
+        const res = await fetch(`${API_BASE}/compliance/check`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: codeToCheck }),
+        });
+        const data = await res.json();
+
+        // Summary meta
+        const passColor = data.compliance_percentage >= 80 ? '#22c55e' : data.compliance_percentage >= 50 ? '#f59e0b' : '#ef4444';
+        compMeta.innerHTML = `
+            <span style="color:${passColor};font-weight:700;font-size:1.2em">${data.compliance_percentage.toFixed(1)}% Compliant</span> · 
+            ${data.rules_passed}/${data.total_rules_checked} rules passed · 
+            ASPICE Level: <strong>${data.aspice_level}</strong> · 
+            <span style="color:#ef4444">${data.rules_failed} violation(s)</span>
+        `;
+
+        // Violations list
+        if (data.violations && data.violations.length > 0) {
+            compResults.innerHTML = data.violations.map(v => `
+                <div class="alert-item ${v.severity === 'required' || v.severity === 'critical' ? 'critical' : 'warning'}">
+                    <div class="alert-type">${v.severity.toUpperCase()} — ${v.rule_id}</div>
+                    <div class="alert-msg">${v.rule_description}</div>
+                    <div class="alert-msg" style="color:#94a3b8;font-size:0.85em">Line ${v.line_number}: <code>${v.line_content}</code></div>
+                    <div class="alert-msg" style="color:#f59e0b">${v.message}</div>
+                </div>
+            `).join('');
+        } else {
+            compResults.innerHTML = '<div class="alert-item"><div class="alert-type" style="color:#22c55e">✅ ALL RULES PASSED</div><div class="alert-msg">Code is fully compliant with MISRA C++:2008 and AUTOSAR guidelines.</div></div>';
+        }
+    } catch (err) {
+        compMeta.textContent = 'Error';
+        compResults.innerHTML = `<div class="alert-item critical"><div class="alert-msg">Compliance check failed: ${err.message}</div></div>`;
+    }
+});
+
+// ── Validate & Auto-Fix (Iterative Build Pipeline) ──────────────────────────
+document.getElementById('btn-validate').addEventListener('click', async () => {
+    console.log('Validate & Auto-Fix clicked');
+    const req = document.getElementById('codegen-input').value.trim();
+    if (!req) { alert('Enter a requirement first.'); return; }
+
+    const lang = document.getElementById('codegen-lang').value;
+    const valCard = document.getElementById('validate-output-card');
+    const valMeta = document.getElementById('validate-meta');
+    const valResults = document.getElementById('validate-results');
+    const valCode = document.getElementById('validate-code-output');
+
+    valCard.style.display = 'block';
+    valMeta.textContent = '⏳ Running iterative validation pipeline...';
+    valResults.innerHTML = '<p class="placeholder-text">Generating code → Generating tests → Executing tests → Auto-fixing errors (up to 3 retries)...</p>';
+    valCode.style.display = 'none';
+
+    try {
+        const res = await fetch(`${API_BASE}/codegen/validate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requirement: req, language: lang, max_retries: 3 }),
+        });
+        const data = await res.json();
+
+        // Summary — match backend field names
+        const passed = data.final_success || false;
+        const statusColor = passed ? '#22c55e' : '#ef4444';
+        const statusIcon = passed ? '✅' : '❌';
+        const totalIter = data.total_iterations || 1;
+        const retries = Math.max(0, totalIter - 1);
+        const improvement = data.improvement || {};
+
+        valMeta.innerHTML = `
+            <span style="color:${statusColor};font-weight:700;font-size:1.2em">${statusIcon} ${passed ? 'ALL TESTS PASSED' : 'TESTS FAILED'}</span> · 
+            Iterations: <strong>${totalIter}</strong> · 
+            Pass rate: <strong>${improvement.initial_pass_rate || 0}% → ${improvement.final_pass_rate || 0}%</strong> · 
+            Language: <strong>${lang}</strong>
+        `;
+
+        // Build step-by-step results
+        let html = '';
+
+        // Step 1: Code Generation
+        const srcInfo = data.source_code || {};
+        html += `<div class="alert-item"><div class="alert-type">Step 1 — Code Generation</div>
+                  <div class="alert-msg">✅ Generated ${srcInfo.lines || '?'} lines of ${lang} code</div></div>`;
+
+        // Step 2: Test Generation
+        const testInfo = data.test_code || {};
+        html += `<div class="alert-item"><div class="alert-type">Step 2 — Test Generation</div>
+                  <div class="alert-msg">✅ Auto-generated ${testInfo.lines || '?'} lines of tests (${testInfo.method || 'auto'})</div></div>`;
+
+        // Step 3: Test Execution
+        if (passed) {
+            html += `<div class="alert-item"><div class="alert-type" style="color:#22c55e">Step 3 — Test Execution</div>
+                      <div class="alert-msg">✅ All tests passed${retries > 0 ? ` (after ${retries} auto-fix attempt${retries > 1 ? 's' : ''})` : ' on first try'}</div></div>`;
+        } else {
+            html += `<div class="alert-item critical"><div class="alert-type">Step 3 — Test Execution</div>
+                      <div class="alert-msg">❌ Tests failed after ${retries} auto-fix attempt${retries !== 1 ? 's' : ''}</div></div>`;
+        }
+
+        // Show iteration history
+        if (data.iterations && Array.isArray(data.iterations)) {
+            data.iterations.forEach((iter, i) => {
+                const tr = iter.test_result || {};
+                const iterPassed = tr.success || false;
+                const iterStatus = iterPassed ? '✅' : '🔄';
+                const passRate = tr.pass_rate != null ? `${tr.pass_rate}%` : 'N/A';
+                const action = iter.action === 'initial_generation' ? 'Initial Generation' :
+                    iter.action === 'iterative_fix' ? 'LLM Auto-Fix' :
+                        iter.action === 'skip_no_llm' ? 'Skipped (no LLM)' :
+                            iter.action || 'Unknown';
+                html += `<div class="alert-item ${iterPassed ? '' : 'warning'}">
+                    <div class="alert-type">${iterStatus} Iteration ${iter.iteration || i + 1} — ${action}</div>
+                    <div class="alert-msg">Passed: ${tr.passed || 0} · Failed: ${tr.failed || 0} · Errors: ${tr.errors || 0} · Pass rate: ${passRate}</div>
+                    ${iter.message ? `<div class="alert-msg" style="color:#f59e0b">${iter.message}</div>` : ''}
+                    ${iter.error ? `<div class="alert-msg" style="color:#ef4444">${iter.error}</div>` : ''}
+                </div>`;
+            });
+        }
+
+        valResults.innerHTML = html;
+
+        // Show the final code
+        const finalCode = (data.source_code && data.source_code.code) || data.final_code || data.code || '';
+        if (finalCode) {
+            valCode.style.display = 'block';
+            valCode.textContent = finalCode;
+        }
+    } catch (err) {
+        valMeta.textContent = 'Error';
+        valResults.innerHTML = `<div class="alert-item critical"><div class="alert-msg">Validation pipeline failed: ${err.message}</div></div>`;
+    }
+});
+
+// ── Build Check (Syntax / Compile) ──────────────────────────────────────────
+document.getElementById('btn-build').addEventListener('click', async () => {
+    console.log('Build Check clicked');
+    const codeOutput = document.getElementById('codegen-output').textContent;
+    const lang = document.getElementById('codegen-lang').value;
+    const valCard = document.getElementById('validate-output-card');
+    const valMeta = document.getElementById('validate-meta');
+    const valResults = document.getElementById('validate-results');
+
+    let codeToCheck = codeOutput;
+    if (!codeToCheck || codeToCheck === 'Generating...' || codeToCheck.startsWith('Error')) {
+        alert('Generate code first, then click Build Check.'); return;
+    }
+
+    // Strip markdown code fences if present (LLM sometimes wraps output)
+    codeToCheck = codeToCheck.trim();
+    if (codeToCheck.startsWith('```')) {
+        const lines = codeToCheck.split('\n');
+        lines.shift(); // remove opening ```lang
+        if (lines.length && lines[lines.length - 1].trim() === '```') lines.pop();
+        codeToCheck = lines.join('\n').trim();
+    }
+
+    valCard.style.display = 'block';
+    valMeta.textContent = '⏳ Running build/compile check...';
+    valResults.innerHTML = '<p class="placeholder-text">Checking syntax and compilation...</p>';
+
+    try {
+        const res = await fetch(`${API_BASE}/codegen/build`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: codeToCheck, language: lang }),
+        });
+        const data = await res.json();
+
+        const success = data.build_success || data.success || data.valid || false;
+        const statusColor = success ? '#22c55e' : '#ef4444';
+        const statusIcon = success ? '✅' : '❌';
+
+        valMeta.innerHTML = `
+            <span style="color:${statusColor};font-weight:700;font-size:1.2em">${statusIcon} ${success ? 'BUILD PASSED' : 'BUILD FAILED'}</span> · 
+            Language: <strong>${data.language || lang}</strong> · 
+            Compiler: <strong>${data.compiler || 'syntax check'}</strong>
+        `;
+
+        let html = '';
+        if (success) {
+            html += `<div class="alert-item"><div class="alert-type" style="color:#22c55e">✅ Build Successful</div>
+                      <div class="alert-msg">${data.message || 'Code passed syntax and compilation checks.'}</div></div>`;
+        } else {
+            html += `<div class="alert-item critical"><div class="alert-type">❌ Build Failed</div>
+                      <div class="alert-msg">${data.message || 'Compilation errors detected.'}</div></div>`;
+        }
+
+        // Show warnings or details
+        if (data.warnings && data.warnings.length > 0) {
+            data.warnings.forEach(w => {
+                html += `<div class="alert-item warning"><div class="alert-type">⚠️ Warning</div>
+                          <div class="alert-msg">${w}</div></div>`;
+            });
+        }
+        if (data.errors && data.errors.length > 0) {
+            data.errors.forEach(e => {
+                html += `<div class="alert-item critical"><div class="alert-type">❌ Error</div>
+                          <div class="alert-msg"><code>${e}</code></div></div>`;
+            });
+        }
+        if (data.details) {
+            html += `<div class="alert-item"><div class="alert-type">Details</div>
+                      <div class="alert-msg">${typeof data.details === 'string' ? data.details : JSON.stringify(data.details, null, 2)}</div></div>`;
+        }
+
+        valResults.innerHTML = html;
+    } catch (err) {
+        valMeta.textContent = 'Error';
+        valResults.innerHTML = `<div class="alert-item critical"><div class="alert-msg">Build check failed: ${err.message}</div></div>`;
+    }
+});
 
 // ── Vehicle Variant ─────────────────────────────────────────────────────────
 document.getElementById('variant-select').addEventListener('change', e => {
@@ -440,19 +699,40 @@ document.getElementById('btn-train-ml').addEventListener('click', async () => {
         const data = await res.json();
         statusEl.innerHTML = `<div class="status-dot success"></div><span>${data.message || 'Training started'}</span>`;
 
-        // Poll for completion
+        // Poll for completion — check status field (not models_ready)
+        let pollCount = 0;
         const pollStatus = setInterval(async () => {
+            pollCount++;
             try {
                 const sRes = await fetch(`${API_BASE}/ml/status`);
                 const sData = await sRes.json();
-                if (sData.models_ready) {
+
+                // Update progress
+                if (sData.progress) {
+                    statusEl.innerHTML = `<div class="status-dot training"></div><span>Training... ${sData.progress}% (${sData.current_model || ''})</span>`;
+                }
+
+                if (sData.status === 'completed') {
                     clearInterval(pollStatus);
                     statusEl.innerHTML = '<div class="status-dot success"></div><span>✅ Models trained and ready!</span>';
                     btn.disabled = false;
                     btn.textContent = '🚀 Retrain Models';
                     fetchMLPredictions();
+                } else if (sData.status === 'failed') {
+                    clearInterval(pollStatus);
+                    statusEl.innerHTML = `<div class="status-dot error"></div><span>❌ Training failed: ${sData.error || 'Unknown error'}</span>`;
+                    btn.disabled = false;
+                    btn.textContent = '🚀 Train Models';
                 }
             } catch (e) { /* continue polling */ }
+
+            // Safety timeout: stop polling after 60s
+            if (pollCount > 30) {
+                clearInterval(pollStatus);
+                statusEl.innerHTML = '<div class="status-dot error"></div><span>⚠️ Training timed out — try again</span>';
+                btn.disabled = false;
+                btn.textContent = '🚀 Train Models';
+            }
         }, 2000);
     } catch (err) {
         statusEl.innerHTML = `<div class="status-dot error"></div><span>Error: ${err.message}</span>`;
@@ -520,8 +800,10 @@ document.getElementById('btn-ota-deploy').addEventListener('click', async () => 
             body: JSON.stringify({ update_type: updateType, payload, description }),
         });
         const data = await res.json();
+        const deployTime = data.update?.deployed_at ? new Date(data.update.deployed_at).toLocaleString() : new Date().toLocaleString();
         statusEl.innerHTML = `<div class="alert-item"><div class="alert-type">✅ Deployed v${data.version}</div>
-                              <div class="alert-msg">${data.update?.applied || 'Success'}</div></div>`;
+                              <div class="alert-msg">${data.update?.applied || 'Success'}</div>
+                              <div class="alert-time" style="color:#22c55e;font-weight:700;font-size:0.95em;">🕐 Deployed at: ${deployTime}</div></div>`;
         fetchOTAHistory();
     } catch (err) {
         statusEl.innerHTML = `<div class="alert-item critical"><div class="alert-msg">Deploy failed: ${err.message}</div></div>`;
@@ -536,13 +818,17 @@ async function fetchOTAHistory() {
 
         const container = document.getElementById('ota-history');
         if (data.history && data.history.length > 0) {
-            container.innerHTML = data.history.map(h => `
-                <div class="alert-item">
-                    <div class="alert-type">v${h.version} — ${h.update_type}</div>
+            container.innerHTML = data.history.map(h => {
+                const ts = new Date(h.deployed_at).toLocaleString();
+                const payloadPreview = h.payload ? JSON.stringify(h.payload).substring(0, 80) : '';
+                return `
+                <div class="alert-item" style="border-left: 3px solid #3b82f6; margin-bottom: 8px;">
+                    <div class="alert-type" style="font-size:1em;">📦 v${h.version} — ${h.update_type}</div>
                     <div class="alert-msg">${h.description}</div>
-                    <div class="alert-time">${h.applied || ''} · ${new Date(h.deployed_at).toLocaleTimeString()}</div>
-                </div>
-            `).join('');
+                    <div class="alert-msg" style="color:#94a3b8;font-size:0.8em;font-family:monospace;">${payloadPreview}${payloadPreview.length >= 80 ? '…' : ''}</div>
+                    <div class="alert-time" style="color:#22c55e;font-weight:700;">🕐 ${ts}</div>
+                </div>`;
+            }).join('');
         }
     } catch (err) { console.error('OTA history error:', err); }
 }

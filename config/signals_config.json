@@ -40,6 +40,10 @@
           "severity": "critical",
           "message": "Battery Degradation Alert: SoC dropped more than 5% rapidly"
         }
+      ],
+      "critical_range": [
+        0,
+        80
       ]
     },
     {
@@ -212,5 +216,6 @@
   ],
   "version": "2.0.0",
   "ota_update_url": "https://ota.example.com/signals_config.json",
-  "last_updated": "2026-02-12T00:00:00Z"
+  "last_updated": "2026-02-19T17:14:29.836225",
+  "ota_version": 2
 }

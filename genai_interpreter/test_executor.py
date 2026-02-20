@@ -304,34 +304,22 @@ class TestExecutor:
             attempt += 1
             logger.info(f"Iterative fix — attempt {attempt}/{max_retries + 1}")
 
-            # Build a fix prompt with the error context
+            # Build a minimal fix prompt to save tokens
             error_output = exec_result.get("output", "Tests failed")
             fix_prompt = (
-                f"The following {language} code was generated for this requirement:\n"
-                f'"{requirement}"\n\n'
-                f"```{language}\n{current_code}\n```\n\n"
-                f"When tested, the following errors occurred:\n"
-                f"```\n{error_output[:2000]}\n```\n\n"
-                f"Please fix the code to make all tests pass. "
-                f"Generate ONLY the corrected source code, no explanations."
+                f"FIX this {language} code. Output ONLY corrected code, nothing else.\n"
+                f"Requirement: \"{requirement}\"\n"
+                f"Code:\n{current_code}\n"
+                f"Errors:\n{error_output[:500]}\n"
+                f"Output the complete fixed source file now:"
             )
 
             try:
-                provider = get_provider()
-                if provider.name != "template":
-                    response = provider.generate(fix_prompt)
-                    fixed_code = response.text.strip()
-                    # Strip markdown code blocks if present
-                    if fixed_code.startswith("```"):
-                        lines = fixed_code.split("\n")
-                        lines = lines[1:]  # remove opening ```lang
-                        if lines and lines[-1].strip() == "```":
-                            lines = lines[:-1]
-                        fixed_code = "\n".join(lines)
-                    current_code = fixed_code
-                else:
+                from genai_interpreter.llm_provider import generate_with_fallback
+                response = generate_with_fallback(fix_prompt)
+                if response.metrics.provider == "template":
                     # Template provider can't fix — just note it
-                    logger.info("Template provider cannot fix code, stopping retries")
+                    logger.info("Only template provider available, stopping retries")
                     iterations.append({
                         "iteration": attempt,
                         "action": "skip_no_llm",
@@ -339,6 +327,15 @@ class TestExecutor:
                         "test_result": exec_result,
                     })
                     break
+                fixed_code = response.text.strip()
+                # Strip markdown code blocks if present
+                if fixed_code.startswith("```"):
+                    lines = fixed_code.split("\n")
+                    lines = lines[1:]  # remove opening ```lang
+                    if lines and lines[-1].strip() == "```":
+                        lines = lines[:-1]
+                    fixed_code = "\n".join(lines)
+                current_code = fixed_code
             except Exception as e:
                 logger.warning(f"LLM fix attempt {attempt} failed: {e}")
                 iterations.append({

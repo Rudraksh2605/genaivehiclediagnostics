@@ -96,6 +96,30 @@ class VehicleSimulator:
         self._tick_count = 0
         start_time = datetime.utcnow().isoformat()
 
+        # Reset simulation state to defaults on start
+        self._speed = 0.0
+        self._battery_soc = 95.0
+        self._battery_voltage = 400.0
+        self._battery_temp = 25.0
+        self._tire_fl = 32.0
+        self._tire_fr = 32.0
+        self._tire_rl = 32.0
+        self._tire_rr = 32.0
+        self._odometer = 15000.0
+        self._fuel_level = 100.0
+        
+        # New signal state variables
+        self._throttle = 0.0
+        self._brake = 0.0
+        self._gear = "P"
+        self._steering = 0.0
+        self._ev_range = 350.0
+
+        self._ev_range = 350.0
+
+        # Reset data store (clears history & alerts) for a fresh demo
+        self.store.reset()
+
         # Reset ICE-specific state
         if self._variant == "ICE":
             self._battery_soc = 100.0  # Starter battery, stays stable

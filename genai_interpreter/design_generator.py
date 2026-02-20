@@ -14,7 +14,7 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from genai_interpreter.llm_provider import get_provider, record_metrics, LLMCallMetrics
+from genai_interpreter.llm_provider import get_provider, record_metrics, LLMCallMetrics, generate_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -233,30 +233,29 @@ def generate_design(
     llm_metrics = None
 
     if use_llm:
-        provider = get_provider(provider_name)
-        if provider.name != "template":
-            try:
-                prompt = _DESIGN_PROMPT.format(
-                    requirement=blueprint.get("raw_requirement", ""),
-                    signals=", ".join(blueprint.get("signals", [])),
-                    services=", ".join(blueprint.get("services", [])),
-                    ui_components=", ".join(blueprint.get("ui_components", [])),
-                    alerts=", ".join(blueprint.get("alerts", [])),
-                )
-                response = provider.generate(prompt)
-                record_metrics(response.metrics)
-                elapsed = (time.perf_counter() - start) * 1000
+        try:
+            prompt = _DESIGN_PROMPT.format(
+                requirement=blueprint.get("raw_requirement", ""),
+                signals=", ".join(blueprint.get("signals", [])),
+                services=", ".join(blueprint.get("services", [])),
+                ui_components=", ".join(blueprint.get("ui_components", [])),
+                alerts=", ".join(blueprint.get("alerts", [])),
+            )
+            response = generate_with_fallback(prompt)
+            record_metrics(response.metrics)
 
+            if response.metrics.provider != "template":
+                elapsed = (time.perf_counter() - start) * 1000
                 return DesignDocument(
                     title="Service Interface Design Document",
                     content=response.text,
                     format="markdown",
-                    generation_method=f"llm:{provider.name}",
+                    generation_method=f"llm:{response.metrics.provider}",
                     generation_time_ms=round(elapsed, 1),
                     llm_metrics=response.metrics,
                 )
-            except Exception as exc:
-                logger.warning(f"LLM design generation failed, using template: {exc}")
+        except Exception as exc:
+            logger.warning(f"LLM design generation failed, using template: {exc}")
 
     # Template fallback
     content = _generate_design_from_template(blueprint)

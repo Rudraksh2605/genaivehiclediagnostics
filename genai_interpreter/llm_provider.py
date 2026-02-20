@@ -63,7 +63,7 @@ class GeminiProvider(BaseLLMProvider):
 
     def __init__(self) -> None:
         self._api_key = os.getenv("GOOGLE_API_KEY", "")
-        self._model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        self._model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         self._client = None
 
     def is_available(self) -> bool:
@@ -86,7 +86,7 @@ class GeminiProvider(BaseLLMProvider):
         model = self._get_client()
         start = time.perf_counter()
         max_retries = 2
-        retry_delay = 15  # seconds
+        retry_delay = 5  # seconds
 
         logger.info(f"[GEMINI] Starting generation, prompt length={len(prompt)} chars")
 
@@ -94,7 +94,7 @@ class GeminiProvider(BaseLLMProvider):
             try:
                 import google.generativeai as genai
                 gen_config = genai.GenerationConfig(
-                    max_output_tokens=8192,
+                    max_output_tokens=65536,
                     temperature=0.2,
                 )
                 logger.info(f"[GEMINI] Calling generate_content (attempt {attempt+1}/{max_retries+1})...")
@@ -132,6 +132,7 @@ class GeminiProvider(BaseLLMProvider):
                     logger.error("[GEMINI] Empty text after extraction, raising error")
                     raise RuntimeError("Gemini returned empty response — check quota or safety filters")
 
+                print(f"DEBUG: Gemini Raw Response:\n{text[:500]}...\n[End of Preview]")
                 logger.info(f"[GEMINI] SUCCESS: generated {len(text)} chars, {text.count(chr(10))+1} lines")
 
                 usage = getattr(response, "usage_metadata", None)
@@ -162,16 +163,8 @@ class GeminiProvider(BaseLLMProvider):
 
                 latency = (time.perf_counter() - start) * 1000
                 logger.error(f"[GEMINI] FINAL FAILURE after {attempt+1} attempts: {exc}")
-                return LLMResponse(
-                    text="",
-                    metrics=LLMCallMetrics(
-                        model=self._model_name,
-                        provider=self.name,
-                        latency_ms=round(latency, 1),
-                        success=False,
-                        error=str(exc),
-                    ),
-                )
+                # Raise so generate_with_fallback can catch and try next provider
+                raise RuntimeError(f"Gemini failed: {exc}")
 
 
 # ── OpenAI Provider ──────────────────────────────────────────────────────────
@@ -219,16 +212,78 @@ class OpenAIProvider(BaseLLMProvider):
         except Exception as exc:
             latency = (time.perf_counter() - start) * 1000
             logger.error(f"OpenAI generation failed: {exc}")
-            return LLMResponse(
-                text="",
-                metrics=LLMCallMetrics(
-                    model=self._model_name,
-                    provider=self.name,
-                    latency_ms=round(latency, 1),
-                    success=False,
-                    error=str(exc),
-                ),
+            raise RuntimeError(f"OpenAI failed: {exc}")
+
+
+# ── Local GGUF Provider (llama.cpp) ──────────────────────────────────────────
+
+class LocalLlamacppProvider(BaseLLMProvider):
+    """Local GGUF model provider using llama-cpp-python."""
+
+    name = "localllama"
+
+    def __init__(self) -> None:
+        self._model_path = os.getenv("LOCAL_MODEL_PATH", "")
+        self._llm = None
+        self._n_ctx = int(os.getenv("LOCAL_MODEL_CTX", "4096"))
+
+    def is_available(self) -> bool:
+        if not self._model_path:
+            logger.debug("[LOCALLAMA] Not available: LOCAL_MODEL_PATH env var is empty")
+            return False
+        if not os.path.exists(self._model_path):
+            logger.warning(f"[LOCALLAMA] Not available: file not found at {self._model_path!r}")
+            return False
+        try:
+            import llama_cpp  # noqa: F401
+            return True
+        except ImportError:
+            logger.warning("[LOCALLAMA] Not available: llama-cpp-python not installed")
+            return False
+
+    def _get_llm(self):
+        if self._llm is None:
+            from llama_cpp import Llama
+            logger.info(f"[LOCALLAMA] Loading model from {self._model_path}...")
+            self._llm = Llama(
+                model_path=self._model_path,
+                n_ctx=self._n_ctx,
+                n_gpu_layers=-1,  # Offload all to GPU if available
+                verbose=False,
             )
+            logger.info("[LOCALLAMA] Model loaded successfully")
+        return self._llm
+
+    def generate(self, prompt: str, **kwargs) -> LLMResponse:
+        llm = self._get_llm()
+        start = time.perf_counter()
+        try:
+            # Simple completion or chat? DeepSeek Coder is instruct-tuned.
+            # We'll use create_chat_completion for better instruction following.
+            response = llm.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2048,
+                temperature=0.2,
+            )
+            latency = (time.perf_counter() - start) * 1000
+            
+            choice = response["choices"][0]["message"]["content"] or ""
+            usage = response.get("usage", {})
+            
+            metrics = LLMCallMetrics(
+                model=os.path.basename(self._model_path),
+                provider=self.name,
+                prompt_tokens=usage.get("prompt_tokens", 0),
+                completion_tokens=usage.get("completion_tokens", 0),
+                total_tokens=usage.get("total_tokens", 0),
+                latency_ms=round(latency, 1),
+            )
+            return LLMResponse(text=choice, metrics=metrics, raw=response)
+
+        except Exception as exc:
+            latency = (time.perf_counter() - start) * 1000
+            logger.error(f"Local LLM generation failed: {exc}")
+            raise RuntimeError(f"Local LLM failed: {exc}")
 
 
 # ── Template Stub Provider (no API key needed) ──────────────────────────────
@@ -247,7 +302,7 @@ class TemplateProvider(BaseLLMProvider):
         text = (
             "# [Template-based generation]\n"
             "# This output was generated using built-in templates.\n"
-            "# Configure GOOGLE_API_KEY or OPENAI_API_KEY for LLM-powered generation.\n"
+            "# Configure GOOGLE_API_KEY, OPENAI_API_KEY, or LOCAL_MODEL_PATH for AI generation.\n"
         )
         latency = (time.perf_counter() - start) * 1000
         metrics = LLMCallMetrics(
@@ -268,15 +323,23 @@ def _init_providers() -> None:
     _PROVIDERS = {
         "gemini": GeminiProvider(),
         "openai": OpenAIProvider(),
+        "localllama": LocalLlamacppProvider(),
         "template": TemplateProvider(),
     }
+    # Log availability on first init
+    for pname, prov in _PROVIDERS.items():
+        avail = prov.is_available()
+        logger.info(f"[PROVIDERS] {pname}: {'✅ available' if avail else '❌ not available'}")
+    local = _PROVIDERS["localllama"]
+    logger.info(f"[PROVIDERS] localllama model_path = {local._model_path!r}")
+    logger.info(f"[PROVIDERS] localllama path exists = {os.path.exists(local._model_path) if local._model_path else 'N/A'}")
 
 
 def get_provider(name: Optional[str] = None) -> BaseLLMProvider:
     """
     Return a provider by name, or the best available one.
 
-    Priority: gemini → openai → template (always available).
+    Priority: gemini → openai → localllama → template (always available).
     """
     if not _PROVIDERS:
         _init_providers()
@@ -287,7 +350,7 @@ def get_provider(name: Optional[str] = None) -> BaseLLMProvider:
             return p
         logger.warning(f"Provider '{name}' not available, falling back")
 
-    for pname in ("gemini", "openai", "template"):
+    for pname in ("gemini", "openai", "localllama", "template"):
         if _PROVIDERS[pname].is_available():
             logger.info(f"Using LLM provider: {pname}")
             return _PROVIDERS[pname]
@@ -315,3 +378,46 @@ def record_metrics(m: LLMCallMetrics) -> None:
 
 def get_metrics_history() -> List[LLMCallMetrics]:
     return list(_metrics_history)
+
+
+# ── Fallback Generation ─────────────────────────────────────────────────────
+
+def generate_with_fallback(prompt: str, **kwargs) -> LLMResponse:
+    """
+    Try all available providers in priority order (gemini → openai → template).
+    
+    If Gemini hits rate limit or fails, automatically falls back to OpenAI,
+    then to the template provider. Logs each fallback attempt clearly.
+    """
+    if not _PROVIDERS:
+        _init_providers()
+
+    fallback_chain = ["gemini", "openai", "localllama", "template"]
+    last_error = None
+
+    for pname in fallback_chain:
+        provider = _PROVIDERS.get(pname)
+        if not provider or not provider.is_available():
+            logger.info(f"[FALLBACK] Skipping {pname}: not available")
+            continue
+
+        try:
+            logger.info(f"[FALLBACK] Trying provider: {pname}")
+            response = provider.generate(prompt, **kwargs)
+
+            # Check for empty response (safety filter, etc.)
+            if not response.text.strip():
+                logger.warning(f"[FALLBACK] {pname} returned empty response, trying next...")
+                continue
+
+            logger.info(f"[FALLBACK] ✅ Success with provider: {pname} ({len(response.text)} chars)")
+            return response
+
+        except Exception as exc:
+            last_error = exc
+            logger.warning(f"[FALLBACK] ❌ {pname} failed: {exc}, trying next provider...")
+            continue
+
+    # All real providers failed — return template as last resort
+    logger.error(f"[FALLBACK] All providers exhausted. Last error: {last_error}")
+    return _PROVIDERS["template"].generate(prompt, **kwargs)

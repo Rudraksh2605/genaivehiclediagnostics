@@ -23,7 +23,7 @@ class OTADeployRequest(BaseModel):
         ...,
         description="Type: signal_config, code_module, parameter_update"
     )
-    payload: Dict[str, Any] = Field(
+    payload: Any = Field(
         ...,
         description="Update payload (config data, module definition, etc.)"
     )
@@ -56,15 +56,58 @@ async def deploy_ota_update(req: OTADeployRequest) -> Dict[str, Any]:
     }
 
     # Apply the update based on type
+    # Apply the update based on type
     if req.update_type == "signal_config":
-        # Add new signal to the config
-        from backend.models.telemetry import SignalConfig
+        import json
+        import os
+        
+        # 1. Load existing config file
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "config",
+            "signals_config.json",
+        )
+        
         try:
-            new_signal = SignalConfig(**req.payload)
-            store.signal_configs.append(new_signal)
-            update_record["applied"] = f"Signal '{new_signal.name}' added"
-        except Exception:
-            update_record["applied"] = "Signal config stored (partial schema)"
+            with open(config_path, "r") as f:
+                config_data = json.load(f)
+            
+            # 2. Prepare updates (payload can be a list or a single dict)
+            updates = req.payload if isinstance(req.payload, list) else [req.payload]
+            applied_changes = []
+
+            # 3. Apply updates to the JSON structure
+            for update in updates:
+                target_id = update.get("id")
+                if not target_id: 
+                    continue
+                
+                # Find matching signal in config
+                for signal in config_data.get("signals", []):
+                    if signal["id"] == target_id:
+                        # Merge fields
+                        for key, value in update.items():
+                            if key != "id":
+                                signal[key] = value
+                        applied_changes.append(f"Updated {target_id}")
+            
+            # 4. Update metadata and save to disk
+            config_data["last_updated"] = datetime.utcnow().isoformat()
+            config_data["ota_version"] = store.ota_version
+            
+            with open(config_path, "w") as f:
+                json.dump(config_data, f, indent=2)
+                
+            # 5. Reload in-memory store to reflect changes immediately
+            store._load_signal_config()
+            
+            update_record["applied"] = ", ".join(applied_changes) or "No matching signals found"
+            
+        except Exception as e:
+            logger.error(f"Failed to persist signal config: {e}")
+            update_record["applied"] = f"Failed to persist: {str(e)}"
+            # Fallback: try to update in-memory only (best effort)
+            pass
 
     elif req.update_type == "parameter_update":
         update_record["applied"] = "Parameters updated in runtime config"
