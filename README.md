@@ -16,13 +16,14 @@ Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 └──────────────┘             │  │ Engine    │  │  ├ Code Generator  │  │
                              │  │ EV/ICE/   │  │  ├ Design Gen      │  │
 ┌──────────────┐             │  │ Hybrid    │  │  ├ Test Gen        │  │
-│ Web Dashboard│ ◄──────────►│  └───────────┘  │  ├ MISRA/AUTOSAR   │  │
-│ (HMI)        │  REST/WS    │                 │  ├ Iterative Build │  │
-└──────────────┘             │  ┌───────────┐  │  └ OTA Deployment  │  │
-                             │  │ML Engine  │  └────────────────────┘  │
-                             │  │sklearn RF │  ┌────────────────────┐  │
-                             │  │+ IsoForest│  │ SQLite Persistence │  │
-                             │  └───────────┘  └────────────────────┘  │
+│ Web Dashboard│ ◄──────────►│  └───────────┘  │  ├ Multi-LLM Comp. │  │
+│ (HMI)        │  REST/WS    │                 │  ├ MISRA/AUTOSAR   │  │
+└──────────────┘             │  ┌───────────┐  │  ├ Iterative Build │  │
+                             │  │ML Engine  │  │  └ OTA Deployment  │  │
+                             │  │sklearn RF │  └────────────────────┘  │
+                             │  │+ IsoForest│  ┌────────────────────┐  │
+                             │  └───────────┘  │ SQLite Persistence │  │
+                             └─────────────────┴────────────────────┘  │
                              └─────────────────────────────────────────┘
 ```
 
@@ -38,6 +39,7 @@ Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 
 ### 🤖 GenAI Code Generation & Iterative Pipeline
 - **Multi-language output**: Generates **Python**, **C++**, **Kotlin**, and **Rust** directly from natural language diagnostics requirements.
+- **Multi-LLM Comparison:** Dynamically compares outputs from different LLM models for quality and correctness.
 - **Iterative Build & Auto-Fixing Pipeline:** Generates code, automatically generates a testing suite, executes the tests against the generated code, and utilizes the LLM to auto-fix failing code (up to 3 retries) until it passes.
 - **Build Checks:** Real compilation checks via `g++` (C++), `kotlinc` (Kotlin), and `rustc` (Rust).
 - **Design & Tests:** Generates distinct Software Design Documents and standalone Unit Tests based on constraints.
@@ -54,7 +56,7 @@ Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 
 ### 🧠 Predictive Analytics & Machine Learning
 - Built on top of `scikit-learn` and `pandas`.
-- **Real-World Telemetry Dataset:** Ingests realistic vehicle telemetry feeds (`data/telemetry_dataset.csv`) to train models on authentic edge-case distributions.
+- **Real-World Telemetry Datasets:** Ingests realistic vehicle telemetry feeds (`data/dataset_battery_prediction.csv` and `data/dataset_tire_wear.csv`) to train models on authentic edge-case distributions.
 - **Battery Depletion Prediction:** Estimates remaining minutes via RandomForest Regressors.
 - **Tire Wear Scoring:** Evaluates real-time wear via RandomForest Classifiers.
 - **Anomaly Detection:** Identifies abnormal telemetry sequences using IsolationForest.
@@ -64,11 +66,12 @@ Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 - Beautiful glassmorphism dark-mode Vanilla JS/HTML5 Web Dashboard.
 - **Trend Charts:** Uses `Chart.js` for historical time-series data of speed, battery, and 4-wheel tire pressures.
 - **Driving Score:** Real-time gamified scoring of braking, accelerating, and efficiency algorithms.
-- **Live Alerts Engine:** Translates anomalous conditions into flashing UI notifications with severity levels.
+- **Live Alerts Engine:** Translates anomalous conditions into flashing UI notifications with severity levels, integrating traceability and health analytics.
 
-### 💾 Scalable Persistence
+### 💾 Scalable Persistence & Health Analytics
 - SQLite-backed telemetry and alert storage (`data/vehicle_diagnostics.db`).
 - Auto-rehydrates telemetry from disk over long durations so the dashboard trend charts survive server restarts.
+- Traceability mapping to link diagnostic events with code modules and requirements.
 
 ---
 
@@ -85,6 +88,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 # (Optional) Export LLM API keys for advanced GenAI features
 export GOOGLE_API_KEY="your-gemini-key"
+export GROQ_API_KEY="your-groq-key"
 
 # OR run the fully containerized stack via Docker
 docker-compose up --build
@@ -111,17 +115,33 @@ For taking the dashboard on the go:
 |--------|----------|-------------|
 | `GET` | `/vehicle/all` | All telemetry data |
 | `GET` | `/vehicle/speed` | Speed reading |
+| `GET` | `/vehicle/battery` | Battery reading |
+| `GET` | `/vehicle/tire-pressure` | Tire pressure readings |
+| `GET` | `/vehicle/alerts` | Active system alerts |
 | `GET` | `/vehicle/history` | Telemetry history (trend charts) |
 | `POST` | `/vehicle/simulate/start` | Start simulator (`?variant=EV/ICE/Hybrid`) |
+| `POST` | `/vehicle/simulate/stop` | Stop simulator |
+| `GET` | `/vehicle/simulate/status` | Simulator status |
 | `WS` | `/ws/telemetry` | Real-time WebSocket telemetry stream |
+| `GET` | `/traceability/map` | Requirements to codebase mapping |
+| `GET` | `/config/signals` | Manage dynamic signal boundaries |
 | `POST` | `/codegen/generate` | Generate code from requirement |
-| `POST` | `/codegen/validate` | **Validate + iterative test/auto-fix loop** |
-| `POST` | `/codegen/build` | Build and compile check (syntax verification) |
+| `POST` | `/codegen/generate-all` | Full pipeline generation |
+| `POST` | `/codegen/design` | Generate design specs |
+| `POST` | `/codegen/test` | Generate unit tests |
+| `POST` | `/codegen/compare-llms` | Compare LLM outputs |
 | `POST` | `/compliance/check` | MISRA + AUTOSAR compliance check |
+| `GET` | `/compliance/rules` | List of supported compliance rules |
+| `GET` | `/predictive/analysis` | Current predictive health analytics |
 | `POST` | `/ml/train` | Train ML models based on recent vehicle data |
 | `POST` | `/ml/predict` | Run ML predictions on current snapshot |
+| `GET` | `/ml/status` | Current ML models status |
+| `GET` | `/ml/gpu` | GPU/Accelerator info |
 | `POST` | `/ota/deploy` | **Deploy OTA update (configuration or code module)** |
 | `GET` | `/ota/history` | OTA deployment history |
+| `GET` | `/ota/status` | OTA deployment status |
+| `POST` | `/simulator/external/feed` | External simulation telemetry injection |
+| `GET` | `/simulator/external/schema` | External simulator JSON schema |
 
 ---
 
@@ -134,17 +154,25 @@ genai-vehicle-diagnostics/
 │   ├── api/                     # REST / WebSocket endpoints
 │   ├── ml/                      # Scikit-Learn training and inference
 │   ├── models/                  # Pydantic data models
+│   ├── analytics/               # Health and predictive analysis engines
+│   ├── traceability/            # Requirement to code mapping logic
 │   ├── simulator/               # EV/ICE/Hybrid background simulator
 │   └── services/                # In-memory singleton states and SQLite persistence
 ├── genai_interpreter/
 │   ├── code_generator.py        # Abstract multi-lang LLM generator
+│   ├── requirement_parser.py    # Structured input parser for user prompts
+│   ├── llm_provider.py          # Provider interfaces (Gemini, Groq, etc.)
+│   ├── llm_comparison.py        # LLM output benchmarking and voting
 │   ├── compliance_checker.py    # MISRA + AUTOSAR rule validator
 │   ├── build_pipeline.py        # Real-time C++/Rust/Kotlin compiler hooks
+│   ├── design_generator.py      # Automated software design document generation
 │   ├── test_generator.py        # Auto-generation of Unit Tests
+│   ├── test_executor.py         # Test execution engine for iterative loop
 │   └── templates/               # Fallback code templates (zero-auth mode)
 ├── android-app/                 # Jetpack Compose Kotlin HMI
 ├── web-dashboard/               # HTML/CSS/JS glassmorphism dashboard
 ├── config/                      # JSON-based simulated signal configurations
+├── data/                        # Contains dataset CSVs and SQLite db
 ├── tests/                       # Complete pytest suite
 └── deployed_modules/            # Folder populated dynamically by Node OTA Deployments
 ```
