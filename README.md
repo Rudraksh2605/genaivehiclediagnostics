@@ -82,6 +82,9 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 # (Optional) Export LLM API keys for advanced GenAI features
 export GOOGLE_API_KEY="your-gemini-key"
+
+# OR run the fully containerized stack via Docker
+docker-compose up --build
 ```
 
 ### Web Dashboard
