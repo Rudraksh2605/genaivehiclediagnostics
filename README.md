@@ -53,11 +53,12 @@ Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 - Provides ASPICE-aligned compliance percentage and line-by-line violation reports.
 
 ### 🧠 Predictive Analytics & Machine Learning
-- Built on top of `scikit-learn`.
+- Built on top of `scikit-learn` and `pandas`.
+- **Real-World Telemetry Dataset:** Ingests realistic vehicle telemetry feeds (`data/telemetry_dataset.csv`) to train models on authentic edge-case distributions.
 - **Battery Depletion Prediction:** Estimates remaining minutes via RandomForest Regressors.
 - **Tire Wear Scoring:** Evaluates real-time wear via RandomForest Classifiers.
 - **Anomaly Detection:** Identifies abnormal telemetry sequences using IsolationForest.
-- Dedicated ML Training tab in the dashboard to generate samples and dynamically train the models at runtime.
+- Dedicated ML Training tab in the dashboard to dynamically load the dataset and train the models at runtime.
 
 ### 📈 Dynamic Analytics Dashboard (HMI)
 - Beautiful glassmorphism dark-mode Vanilla JS/HTML5 Web Dashboard.

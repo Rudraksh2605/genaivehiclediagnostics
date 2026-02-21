@@ -37,78 +37,73 @@ def generate_training_data(
     seed: int = 42,
 ) -> Dict[str, Any]:
     """
-    Generate synthetic vehicle telemetry data for training.
-    
-    Returns dict with keys: battery_X, battery_y, tire_X, tire_y,
-                            anomaly_X (normal), anomaly_X_abnormal
+    Load real-world vehicle telemetry data for training from Kaggle-style CSV.
+    Falls back to synthetic generation if the file is missing.
     """
     np.random.seed(seed)
-    logger.info(f"Generating {num_sequences} training samples...")
+    
+    csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "telemetry_dataset.csv")
+    
+    if os.path.exists(csv_path):
+        logger.info(f"Loading real-world training data from {csv_path}...")
+        try:
+            import pandas as pd
+            df = pd.read_csv(csv_path)
+            
+            # Limit to num_sequences
+            df = df.sample(n=min(num_sequences, len(df)), random_state=seed)
+            
+            # ── Battery SoC Prediction Data (Flattened for RF) ───────────────────
+            # Features: [soc, voltage, temp, discharge_rate]
+            # Label: minutes until SoC < 20%
+            battery_X = df[['battery_soc', 'battery_voltage', 'battery_temp', 'discharge_rate']].values
+            battery_y = df['minutes_to_20_soc'].values
+            
+            # ── Tire Wear Prediction Data ────────────────────────────────────────
+            # Features: [FL_psi, FR_psi, RL_psi, RR_psi, odometer, speed]
+            # Label: wear score [0=new, 1=needs replacement]
+            tire_X = df[['tire_fl_psi', 'tire_fr_psi', 'tire_rl_psi', 'tire_rr_psi', 'odometer', 'speed']].values
+            tire_y = df['tire_wear_label'].values
+            
+            # ── Anomaly Detection Data ───────────────────────────────────────────
+            # Features: 11 signals
+            anomaly_X = df[['speed', 'battery_soc', 'battery_voltage', 'battery_temp', 
+                           'tire_fl_psi', 'tire_fr_psi', 'tire_rl_psi', 'tire_rr_psi', 
+                           'throttle', 'brake', 'ev_range']].values
+                           
+            return {
+                "battery_X": battery_X,
+                "battery_y": battery_y,
+                "tire_X": tire_X,
+                "tire_y": tire_y,
+                "anomaly_X": anomaly_X,
+            }
+        except Exception as e:
+            logger.error(f"Failed to load CSV dataset: {e}. Falling back to synthetic.")
+            
+    logger.info(f"Generating {num_sequences} synthetic training samples (fallback)...")
 
-    # ── Battery SoC Prediction Data (Flattened for RF) ───────────────────
-    # Features: [mean_soc, mean_voltage, mean_temp, discharge_rate_est]
-    # Label: minutes until SoC < 20%
+    # ── Fallback Synthetic Generation (if CSV missing) ───────────────────────
     battery_X = []
     battery_y = []
-
     for _ in range(num_sequences):
         current_soc = np.random.uniform(25, 100)
         discharge_rate = np.random.uniform(0.1, 1.5)
-        
-        # Features representing current state
-        battery_X.append([
-            current_soc,
-            320 + (current_soc / 100) * 80 + np.random.normal(0, 1), # Voltage
-            np.random.uniform(15, 40),                               # Temp
-            discharge_rate + np.random.normal(0, 0.05),              # Rate est
-        ])
+        battery_X.append([current_soc, 320 + (current_soc / 100) * 80 + np.random.normal(0, 1), np.random.uniform(15, 40), discharge_rate + np.random.normal(0, 0.05)])
+        battery_y.append((current_soc - 20) / max(discharge_rate, 0.01) if current_soc > 20 else 0)
 
-        # Label
-        if current_soc > 20:
-            minutes_left = (current_soc - 20) / max(discharge_rate, 0.01)
-        else:
-            minutes_left = 0
-        battery_y.append(minutes_left)
-
-    # ── Tire Wear Prediction Data ────────────────────────────────────────
-    # Features: [FL_psi, FR_psi, RL_psi, RR_psi, odometer, speed_avg]
-    # Label: wear score [0=new, 1=needs replacement]
     tire_X = []
     tire_y = []
-
     for _ in range(num_sequences):
         wear_level = np.random.uniform(0, 1)
         base_pressure = 35.0 - wear_level * 12.0
-        
-        tire_X.append([
-            base_pressure + np.random.normal(0, 1.5),
-            base_pressure + np.random.normal(0, 1.5),
-            base_pressure + np.random.normal(0, 2.0),
-            base_pressure + np.random.normal(0, 2.0),
-            np.random.uniform(0, 100000) * (0.3 + wear_level * 0.7),
-            np.random.uniform(30, 120),
-        ])
+        tire_X.append([base_pressure + np.random.normal(0, 1.5), base_pressure + np.random.normal(0, 1.5), base_pressure + np.random.normal(0, 2.0), base_pressure + np.random.normal(0, 2.0), np.random.uniform(0, 100000) * (0.3 + wear_level * 0.7), np.random.uniform(30, 120)])
         tire_y.append(wear_level)
 
-    # ── Anomaly Detection Data ───────────────────────────────────────────
-    # Features: 11 signals (Speed, SoC, Voltage, Temp, 4xTires, Throttle, Brake, Range)
     anomaly_normal = []
-    
     for _ in range(num_sequences):
         soc = np.random.uniform(20, 100)
-        anomaly_normal.append([
-            np.random.uniform(0, 180),                 # Speed
-            soc,                                       # SoC
-            320 + (soc / 100) * 80,                    # Voltage
-            np.random.uniform(15, 40),                 # Temp
-            np.random.uniform(28, 36),                 # FL
-            np.random.uniform(28, 36),                 # FR
-            np.random.uniform(28, 36),                 # RL
-            np.random.uniform(28, 36),                 # RR
-            np.random.uniform(0, 100),                 # Throttle
-            np.random.uniform(0, 100),                 # Brake
-            soc * 3.5,                                 # Range
-        ])
+        anomaly_normal.append([np.random.uniform(0, 180), soc, 320 + (soc / 100) * 80, np.random.uniform(15, 40), np.random.uniform(28, 36), np.random.uniform(28, 36), np.random.uniform(28, 36), np.random.uniform(28, 36), np.random.uniform(0, 100), np.random.uniform(0, 100), soc * 3.5])
 
     return {
         "battery_X": np.array(battery_X),
