@@ -33,6 +33,7 @@ Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 ### 🔧 Real-Time Vehicle Telemetry Simulator
 - **Vehicle Variants:** Simulates physics and battery drain for **EV**, **Hybrid**, and **ICE** configurations.
 - **Signals:** Speed, battery SoC, tire pressure, drivetrain attributes (throttle, brake, gear, steering), GPS coordinates, and more.
+- **External Simulator Ready:** Designed to seamlessly ingest high-frequency telemetry from external industry-standard tools like **CARLA** or **CarMaker** via `UDP`, `WebSockets`, and `REST API`. Includes a demo script (`demo_external_sim.py`) to prove real-time ingestion capabilities. 
 - **Streaming:** **WebSocket** real-time streaming (`/ws/telemetry`) with HTTP polling fallback.
 
 ### 🤖 GenAI Code Generation & Iterative Pipeline
@@ -59,7 +60,7 @@ Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 - Dedicated ML Training tab in the dashboard to generate samples and dynamically train the models at runtime.
 
 ### 📈 Dynamic Analytics Dashboard (HMI)
-- Beautiful glassmorphism dark-mode Angular/HTML5 Web Dashboard.
+- Beautiful glassmorphism dark-mode Vanilla JS/HTML5 Web Dashboard.
 - **Trend Charts:** Uses `Chart.js` for historical time-series data of speed, battery, and 4-wheel tire pressures.
 - **Driving Score:** Real-time gamified scoring of braking, accelerating, and efficiency algorithms.
 - **Live Alerts Engine:** Translates anomalous conditions into flashing UI notifications with severity levels.

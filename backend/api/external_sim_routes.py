@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 from backend.services.data_store import DataStore
@@ -102,10 +102,77 @@ async def feed_external_telemetry(data: ExternalTelemetryFeed) -> Dict[str, Any]
 
     return {
         "success": True,
-        "source": "external_simulator",
+        "source": "external_simulator_rest",
         "timestamp": telemetry.timestamp,
         "accepted_fields": {k: v for k, v in data.model_dump().items() if v is not None},
     }
+
+@router.websocket("/ws-stream")
+async def external_telemetry_websocket(websocket: WebSocket):
+    """
+    High-frequency WebSocket ingestion for external simulators.
+    Expects JSON payloads matching the ExternalTelemetryFeed schema.
+    """
+    await websocket.accept()
+    logger.info("External simulator connected via WebSocket")
+    try:
+        while True:
+            # 1. Receive JSON payload
+            import json
+            raw_msg = await websocket.receive_text()
+            data_dict = json.loads(raw_msg)
+            
+            # 2. Parse using schema
+            data = ExternalTelemetryFeed(**data_dict)
+            
+            # 3. Inject (reusing the same logic as the REST endpoint but without HTTP overhead)
+            store = DataStore()
+            current = store.telemetry
+            
+            telemetry = VehicleTelemetry(
+                timestamp=datetime.utcnow().isoformat(),
+                speed=data.speed if data.speed is not None else current.speed,
+                battery=BatteryHealth(
+                    soc=data.battery_soc if data.battery_soc is not None else current.battery.soc,
+                    voltage=data.battery_voltage if data.battery_voltage is not None else current.battery.voltage,
+                    temperature=data.battery_temperature if data.battery_temperature is not None else current.battery.temperature,
+                    health_status=current.battery.health_status,
+                ),
+                tires=TireStatus(
+                    front_left=data.tire_fl if data.tire_fl is not None else current.tires.front_left,
+                    front_right=data.tire_fr if data.tire_fr is not None else current.tires.front_right,
+                    rear_left=data.tire_rl if data.tire_rl is not None else current.tires.rear_left,
+                    rear_right=data.tire_rr if data.tire_rr is not None else current.tires.rear_right,
+                ),
+                drivetrain=DrivetrainStatus(
+                    throttle_position=data.throttle if data.throttle is not None else current.drivetrain.throttle_position,
+                    brake_position=data.brake if data.brake is not None else current.drivetrain.brake_position,
+                    gear_position=data.gear if data.gear is not None else current.drivetrain.gear_position,
+                    steering_angle=data.steering_angle if data.steering_angle is not None else current.drivetrain.steering_angle,
+                ),
+                ev_status=EVStatus(
+                    ev_range=data.ev_range if data.ev_range is not None else current.ev_status.ev_range,
+                    charging=current.ev_status.charging,
+                    regen_braking=current.ev_status.regen_braking,
+                ),
+                gps=GPSLocation(
+                    latitude=data.latitude if data.latitude is not None else current.gps.latitude,
+                    longitude=data.longitude if data.longitude is not None else current.gps.longitude,
+                ),
+                odometer=data.odometer if data.odometer is not None else current.odometer,
+                engine_status="running",
+                vehicle_variant=data.vehicle_variant if data.vehicle_variant is not None else current.vehicle_variant,
+            )
+            
+            store.update_telemetry(telemetry)
+            
+            # Optionally acknowledge
+            # await websocket.send_text('{"status": "accepted"}')
+            
+    except WebSocketDisconnect:
+        logger.info("External simulator disconnected from WebSocket")
+    except Exception as e:
+        logger.warning(f"External simulator WebSocket error: {e}")
 
 
 @router.get("/schema", summary="Get expected data format for external feeds")

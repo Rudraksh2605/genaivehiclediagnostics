@@ -62,3 +62,23 @@ async def get_{{ signal }}():
 async def get_alerts(limit: int = 50):
     """Return recent alerts."""
     return _alerts[-limit:]
+
+def process_telemetry(telemetry_data: dict, store: object) -> None:
+    """
+    Called by the main vehicle simulator at 1Hz. 
+    Analyze telemetry_data and append flags to _alerts if necessary.
+    """
+    global _latest
+    
+    # Update local state
+    try:
+        from pydantic import ValidationError
+        _latest = {{ service_name | title | replace('_', '') }}Telemetry(**telemetry_data)
+    except Exception:
+        pass
+    
+    # 1. Add simple analytic rules here that populate the _alerts array 
+    # Example:
+    # if telemetry_data.get("speed", 0) > 120:
+    #     _alerts.append({"msg": "High speed detected", "ts": telemetry_data["timestamp"]})
+    pass

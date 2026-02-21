@@ -65,6 +65,7 @@ class DataStore:
         # OTA update history
         self.ota_history: List[dict] = []
         self.ota_version: int = 1
+        self.ota_hooks: List[callable] = []
 
         # Current vehicle variant
         self.vehicle_variant: str = "EV"
@@ -235,5 +236,6 @@ class DataStore:
         self.tire_history.clear()
         self.telemetry_history.clear()
         self.ota_history.clear()
+        self.ota_hooks.clear()
         self.simulation = SimulationStatus()
         logger.info("DataStore reset to initial state")

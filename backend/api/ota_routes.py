@@ -128,7 +128,8 @@ async def deploy_ota_update(req: OTADeployRequest) -> Dict[str, Any]:
             os.makedirs(deploy_dir, exist_ok=True)
             
             ext = {"python": ".py", "cpp": ".cpp", "rust": ".rs", "kotlin": ".kt"}.get(lang, ".txt")
-            filename = payload_data.get("module_name", f"module_v{store.ota_version}") + ext
+            module_base_name = payload_data.get("module_name", f"module_v{store.ota_version}")
+            filename = module_base_name + ext
             filepath = os.path.join(deploy_dir, filename)
             
             with open(filepath, "w", encoding="utf-8") as f:
@@ -136,6 +137,46 @@ async def deploy_ota_update(req: OTADeployRequest) -> Dict[str, Any]:
                 
             update_record["applied"] = f"Code module deployed to edge node ({lang})"
             update_record["filename"] = filename
+
+            # --- DYNAMIC HOT-LOADING FOR PYTHON ---
+            if lang == "python":
+                import importlib.util
+                import sys
+                from fastapi import APIRouter
+                from backend.main import app
+
+                # Create a random module name to avoid collisions
+                import_name = f"dynamic_ota_{store.ota_version}_{module_base_name}"
+                
+                try:
+                    spec = importlib.util.spec_from_file_location(import_name, filepath)
+                    if spec and spec.loader:
+                        module = importlib.util.module_from_spec(spec)
+                        sys.modules[import_name] = module
+                        spec.loader.exec_module(module)
+                        
+                        loaded_features = []
+
+                        # 1. Look for a FastAPI router to inject
+                        if hasattr(module, "router") and isinstance(module.router, APIRouter):
+                            app.include_router(module.router)
+                            loaded_features.append("REST API routes mounted")
+                            
+                        # 2. Look for a process_telemetry hook for the simulator
+                        if hasattr(module, "process_telemetry") and callable(module.process_telemetry):
+                            store.ota_hooks.append(module.process_telemetry)
+                            loaded_features.append("telemetry analytics hook registered")
+                            
+                        if loaded_features:
+                            update_record["hot_loaded"] = True
+                            update_record["dynamic_features"] = loaded_features
+                            logger.info(f"Successfully hot-loaded {filename}: {', '.join(loaded_features)}")
+                        else:
+                            logger.warning(f"Module {filename} loaded but contained no recognizable hooks/routers.")
+                except Exception as dyn_err:
+                    logger.error(f"Failed to hot-load Python module {filename}: {dyn_err}")
+                    update_record["hot_load_error"] = str(dyn_err)
+
         except Exception as e:
             logger.error(f"Failed to save code module: {e}")
             update_record["applied"] = f"Module registered, but failed to save to disk: {str(e)}"

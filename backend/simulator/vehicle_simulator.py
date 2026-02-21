@@ -180,6 +180,13 @@ class VehicleSimulator:
                 for alert in new_alerts:
                     self.store.add_alert(alert)
 
+                # Execute dynamic OTA hooks (from deployed code modules)
+                for hook in self.store.ota_hooks:
+                    try:
+                        hook(telemetry.dict(), self.store)
+                    except Exception as e:
+                        logger.error(f"OTA hook execution failed: {e}")
+
                 # Update simulation status
                 self.store.simulation.tick_count = self._tick_count
 

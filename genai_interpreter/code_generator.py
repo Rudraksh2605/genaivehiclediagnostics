@@ -145,7 +145,8 @@ CONSTRAINTS:
 4. USE PYDANTIC MODELS for data structures.
 5. USE FASTAPI for REST endpoints.
 6. THREAD SAFETY. Use threading.Lock where needed.
-7. NO WHITE SPACE/FORMATTING FLUFF. Keep code concise.
+7. DEFINE `def process_telemetry(telemetry_data: dict, store: object) -> None:` to hook into the 1Hz simulation loop. Extract data from `telemetry_data` and write to the global `_alerts` array if conditions met.
+8. NO WHITE SPACE/FORMATTING FLUFF. Keep code concise.
 
 START OUTPUT IMMEDIATELY WITH import statements.""",
 

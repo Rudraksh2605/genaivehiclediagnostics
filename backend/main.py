@@ -148,6 +148,14 @@ async def startup_event():
     from backend.services.data_store import DataStore
     store = DataStore()
     logger.info(f"Loaded {len(store.signal_configs)} signal configurations")
+    
+    # Start UDP Telemetry Receiver (for external simulators like CARLA)
+    from backend.simulator.udp_receiver import start_udp_receiver
+    try:
+        app.state.udp_transport = await start_udp_receiver(host="0.0.0.0", port=9000)
+    except Exception as e:
+        logger.error(f"Failed to start UDP receiver: {e}")
+        
     logger.info("API documentation available at /docs")
     logger.info("=" * 60)
 
@@ -160,4 +168,10 @@ async def shutdown_event():
     simulator = get_simulator()
     if simulator.is_running:
         await simulator.stop()
+        
+    # Stop UDP receiver
+    if hasattr(app.state, "udp_transport") and app.state.udp_transport:
+        app.state.udp_transport.close()
+        logger.info("UDP Telemetry Receiver stopped")
+        
     logger.info("Shutdown complete")
