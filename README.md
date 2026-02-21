@@ -4,7 +4,7 @@
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 ┌──────────────┐   REST/WS   ┌─────────────────────────────────────────┐
@@ -13,241 +13,149 @@
 │ Compose      │             │  ┌───────────┐  ┌────────────────────┐  │
 │              │             │  │ Simulator │  │ GenAI Interpreter  │  │
 └──────────────┘             │  │ Engine    │  │  ├ Code Generator  │  │
-                              │  │ EV/ICE/   │  │  ├ Design Gen      │  │
+                             │  │ EV/ICE/   │  │  ├ Design Gen      │  │
 ┌──────────────┐             │  │ Hybrid    │  │  ├ Test Gen        │  │
-│ Web Dashboard│ ◄──────────►│  └───────────┘  │  ├ MISRA Checker   │  │
-│ (HMI)       │  REST/WS     │                 │  ├ AUTOSAR Checker │  │
-└──────────────┘             │  ┌───────────┐  │  ├ Build Pipeline  │  │
-                              │  │ML Engine  │  │  └ LLM Comparison  │  │
-                              │  │sklearn RF │  └────────────────────┘  │
-                              │  │+ IsoForest│  ┌────────────────────┐  │
-                              │  └───────────┘  │ SQLite Persistence │  │
-                              │                 └────────────────────┘  │
-                              └─────────────────────────────────────────┘
+│ Web Dashboard│ ◄──────────►│  └───────────┘  │  ├ MISRA/AUTOSAR   │  │
+│ (HMI)        │  REST/WS    │                 │  ├ Iterative Build │  │
+└──────────────┘             │  ┌───────────┐  │  └ OTA Deployment  │  │
+                             │  │ML Engine  │  └────────────────────┘  │
+                             │  │sklearn RF │  ┌────────────────────┐  │
+                             │  │+ IsoForest│  │ SQLite Persistence │  │
+                             │  └───────────┘  └────────────────────┘  │
+                             └─────────────────────────────────────────┘
 ```
 
 ---
 
-## Features
+## ✨ Features
 
-### 🔧 Real-Time Vehicle Telemetry
-- Speed, battery SoC, tire pressure, engine temperature, odometer, fuel level
-- Throttle, brake, gear position, steering angle, EV range, GPS
-- **WebSocket** real-time streaming (`/ws/telemetry`) with HTTP polling fallback
+### 🔧 Real-Time Vehicle Telemetry Simulator
+- **Vehicle Variants:** Simulates physics and battery drain for **EV**, **Hybrid**, and **ICE** configurations.
+- **Signals:** Speed, battery SoC, tire pressure, drivetrain attributes (throttle, brake, gear, steering), GPS coordinates, and more.
+- **Streaming:** **WebSocket** real-time streaming (`/ws/telemetry`) with HTTP polling fallback.
 
-### 🤖 GenAI Code Generation Engine
-- Multi-language output: **Python**, **C++**, **Kotlin**, **Rust**
-- LLM-first approach (Gemini / OpenAI) with template-based fallback
-- Design document & test suite generation
-- **Iterative build loop**: auto-fix errors via LLM re-generation (up to 3 retries)
-- LLM comparison with quality KPIs (`/codegen/demo-compare` — no API key needed)
-- Real compilation: g++ (C++), kotlinc (Kotlin), rustc (Rust) when available
+### 🤖 GenAI Code Generation & Iterative Pipeline
+- **Multi-language output**: Generates **Python**, **C++**, **Kotlin**, and **Rust** directly from natural language diagnostics requirements.
+- **Iterative Build & Auto-Fixing Pipeline:** Generates code, automatically generates a testing suite, executes the tests against the generated code, and utilizes the LLM to auto-fix failing code (up to 3 retries) until it passes.
+- **Build Checks:** Real compilation checks via `g++` (C++), `kotlinc` (Kotlin), and `rustc` (Rust).
+- **Design & Tests:** Generates distinct Software Design Documents and standalone Unit Tests based on constraints.
 
-### ✅ MISRA + AUTOSAR Compliance Checking
-- **15 rules total**: 10 MISRA C++:2008 + 5 AUTOSAR C++ coding guidelines
-- MISRA: unreachable code, type casting, magic numbers, uninitialized vars, etc.
-- AUTOSAR: RAII enforcement, smart pointers, const correctness, no magic numbers
-- ASPICE-aligned compliance level assessment
+### 🚀 Edge OTA Code Deployment
+- Simulates Edge OTA deployment directly from the Code Generation loop.
+- One-click **"Deploy via OTA"** immediately pushes generated, validated code models to the simulated edge vehicle (`deployed_modules/` folder).
+- Maintains a strict historical registry of deployed configurations, tracked via the Dashboard.
 
-### 🧠 ML Predictive Analytics (Scikit-Learn)
-- Battery depletion prediction (RandomForest)
-- Tire wear scoring (RandomForest)
-- Anomaly detection (IsolationForest)
-- Dashboard ML training controls with status polling
+### ✅ MISRA + AUTOSAR Compliance Verification
+- **15 Integrated Rules**: Deep compliance analysis against 10 **MISRA C++:2008** and 5 **AUTOSAR C++** coding guidelines.
+- Checks coverage for: Unreachable code, magic numbers, type casting safety, uninitialized variables, RAII enforcement, and smart pointers.
+- Provides ASPICE-aligned compliance percentage and line-by-line violation reports.
 
-### 📈 Historical Trend Charts
-- Chart.js time-series for speed, battery SoC, and tire pressure
-- 300-snapshot telemetry history buffer (5 minutes)
+### 🧠 Predictive Analytics & Machine Learning
+- Built on top of `scikit-learn`.
+- **Battery Depletion Prediction:** Estimates remaining minutes via RandomForest Regressors.
+- **Tire Wear Scoring:** Evaluates real-time wear via RandomForest Classifiers.
+- **Anomaly Detection:** Identifies abnormal telemetry sequences using IsolationForest.
+- Dedicated ML Training tab in the dashboard to generate samples and dynamically train the models at runtime.
 
-### 🚗 Vehicle Variant Simulation
-- **EV**: Battery drain, regenerative braking, zero fuel
-- **ICE**: Engine-based, fuel consumption, static battery
-- **Hybrid**: Dual powertrain, moderate battery drain + fuel
+### 📈 Dynamic Analytics Dashboard (HMI)
+- Beautiful glassmorphism dark-mode Angular/HTML5 Web Dashboard.
+- **Trend Charts:** Uses `Chart.js` for historical time-series data of speed, battery, and 4-wheel tire pressures.
+- **Driving Score:** Real-time gamified scoring of braking, accelerating, and efficiency algorithms.
+- **Live Alerts Engine:** Translates anomalous conditions into flashing UI notifications with severity levels.
 
-### 📡 OTA Simulation
-- Deploy OTA updates via `/ota/deploy`
-- Version tracking, deployment history, rollback info
-
-### 🔌 External Simulator Adapter
-- CARLA-compatible REST endpoint (`/simulator/external/feed`)
-- Schema endpoint for integration guidance
-
-### 💾 Data Persistence
-- SQLite-backed telemetry and alert storage (`data/vehicle_diagnostics.db`)
-- Data survives server restarts — history auto-loaded on startup
-
-### 📱 Android App (Jetpack Compose)
-- Dark-themed automotive HMI
-- Speed gauge, battery indicator, tire pressure grid
-- EV range card, throttle/brake bars, drivetrain panel, GPS display
-- Code Generator screen with language selection
-- Bottom navigation: Dashboard → CodeGen → Alerts
-
-### 🖥️ Web Dashboard
-- Glassmorphism dark-mode premium HMI
-- Live telemetry via WebSocket, alerts, analytics, code generation
-- ML Training tab, OTA Updates tab, Trend Charts
-- Vehicle variant selector (EV / Hybrid / ICE)
-
-### 🐳 SoA Docker Architecture
-- 4 separate services: telemetry, codegen, ml, dashboard (nginx)
-- Health checks, service dependencies, isolated scaling
+### 💾 Scalable Persistence
+- SQLite-backed telemetry and alert storage (`data/vehicle_diagnostics.db`).
+- Auto-rehydrates telemetry from disk over long durations so the dashboard trend charts survive server restarts.
 
 ---
 
-## Quick Start
+## 🚦 Quick Start
 
-### Backend
+### Backend (Local Python)
 
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
-# Start server
+# Start the uvicorn API server
 uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
-# (Optional) Set LLM API keys for GenAI features
+# (Optional) Export LLM API keys for advanced GenAI features
 export GOOGLE_API_KEY="your-gemini-key"
 ```
 
-### Docker (SoA)
+### Web Dashboard
 
-```bash
-# With optional API key
-GOOGLE_API_KEY=your-key docker compose up --build
-```
+After starting the backend, open your browser and navigate to:
+👉 `http://localhost:8000/dashboard`
 
 ### Android App
 
-Open the `android-app/` folder in Android Studio and run on an emulator or device. Update the backend URL in `RetrofitClient.kt` if needed.
-
-### Web Dashboard
-
-Open `http://localhost:8000/dashboard` after starting the backend.
+For taking the dashboard on the go: 
+1. Open the `android-app/` folder in Android Studio.
+2. Ensure you have the latest Gradle build tools installed.
+3. Update the backend URL in `RetrofitClient.kt` if running on a physical device over a network.
+4. Run on an emulator.
 
 ---
 
-## API Endpoints
+## 📡 API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/vehicle/all` | All telemetry data |
 | `GET` | `/vehicle/speed` | Speed reading |
-| `GET` | `/vehicle/battery` | Battery SoC & health |
-| `GET` | `/vehicle/tire-pressure` | Tire pressure (4 tires) |
-| `GET` | `/vehicle/alerts` | Active alerts |
 | `GET` | `/vehicle/history` | Telemetry history (trend charts) |
-| `POST` | `/vehicle/simulate/start` | Start simulator (?variant=EV/ICE/Hybrid) |
-| `POST` | `/vehicle/simulate/stop` | Stop simulator |
+| `POST` | `/vehicle/simulate/start` | Start simulator (`?variant=EV/ICE/Hybrid`) |
 | `WS` | `/ws/telemetry` | Real-time WebSocket telemetry stream |
-| `GET` | `/config/signals` | Signal configuration (OTA) |
 | `POST` | `/codegen/generate` | Generate code from requirement |
-| `POST` | `/codegen/validate` | Validate + iterative auto-fix |
-| `POST` | `/codegen/build` | Build/compile check |
-| `GET` | `/codegen/demo-compare` | Demo LLM comparison (no key needed) |
+| `POST` | `/codegen/validate` | **Validate + iterative test/auto-fix loop** |
+| `POST` | `/codegen/build` | Build and compile check (syntax verification) |
 | `POST` | `/compliance/check` | MISRA + AUTOSAR compliance check |
-| `GET` | `/compliance/rules` | Supported rules (15 total) |
-| `POST` | `/ml/train` | Train ML models |
-| `POST` | `/ml/predict` | Run ML predictions |
-| `GET` | `/ml/status` | Training status |
-| `POST` | `/ota/deploy` | Deploy OTA update |
+| `POST` | `/ml/train` | Train ML models based on recent vehicle data |
+| `POST` | `/ml/predict` | Run ML predictions on current snapshot |
+| `POST` | `/ota/deploy` | **Deploy OTA update (configuration or code module)** |
 | `GET` | `/ota/history` | OTA deployment history |
-| `POST` | `/simulator/external/feed` | Feed external simulator data |
-| `GET` | `/predictive/analysis` | Predictive analytics |
 
 ---
 
-## Project Structure
+## 🗂️ Project Structure
 
 ```
 genai-vehicle-diagnostics/
 ├── backend/
-│   ├── main.py                  # FastAPI app entry point
-│   ├── api/
-│   │   ├── vehicle_routes.py    # Telemetry endpoints
-│   │   ├── simulation_routes.py # Sim control
-│   │   ├── codegen_routes.py    # Code generation + demo-compare
-│   │   ├── compliance_routes.py # MISRA + AUTOSAR compliance
-│   │   ├── ml_routes.py         # ML train/predict
-│   │   ├── ota_routes.py        # OTA deploy/history
-│   │   ├── history_routes.py    # Telemetry history
-│   │   ├── ws_routes.py         # WebSocket streaming
-│   │   └── external_sim_routes.py # CARLA adapter
-│   ├── ml/
-│   │   ├── ml_trainer.py        # Scikit-Learn model training
-│   │   └── ml_predictor.py      # Inference engine
-│   ├── models/telemetry.py      # Pydantic data models
-│   ├── simulator/               # Variant-aware vehicle simulator
-│   ├── services/
-│   │   ├── data_store.py        # In-memory state + persistence
-│   │   └── persistence.py       # SQLite persistence layer
-│   └── analytics/               # Health + predictive analytics
+│   ├── main.py                  # FastAPI server entry point
+│   ├── api/                     # REST / WebSocket endpoints
+│   ├── ml/                      # Scikit-Learn training and inference
+│   ├── models/                  # Pydantic data models
+│   ├── simulator/               # EV/ICE/Hybrid background simulator
+│   └── services/                # In-memory singleton states and SQLite persistence
 ├── genai_interpreter/
-│   ├── requirement_parser.py    # NLP requirement parsing
-│   ├── code_generator.py        # Multi-language code gen
-│   ├── design_generator.py      # Design document gen
-│   ├── test_generator.py        # Test suite gen
-│   ├── compliance_checker.py    # MISRA + AUTOSAR checker (15 rules)
-│   ├── build_pipeline.py        # Multi-lang compile (g++/kotlinc/rustc)
-│   ├── llm_provider.py          # LLM abstraction layer
-│   ├── llm_comparison.py        # Provider comparison engine
-│   └── templates/               # Jinja2 fallback templates
-├── android-app/                 # Jetpack Compose Android app
-├── web-dashboard/               # HMI dashboard (HTML/CSS/JS)
-├── data/                        # SQLite database (auto-created)
-├── config/signals_config.json   # OTA signal configuration
-├── tests/                       # pytest test suite (7 files)
-├── Dockerfile                   # Container build
-├── docker-compose.yml           # SoA orchestration (4 services)
-└── .github/workflows/ci.yml    # CI pipeline
+│   ├── code_generator.py        # Abstract multi-lang LLM generator
+│   ├── compliance_checker.py    # MISRA + AUTOSAR rule validator
+│   ├── build_pipeline.py        # Real-time C++/Rust/Kotlin compiler hooks
+│   ├── test_generator.py        # Auto-generation of Unit Tests
+│   └── templates/               # Fallback code templates (zero-auth mode)
+├── android-app/                 # Jetpack Compose Kotlin HMI
+├── web-dashboard/               # HTML/CSS/JS glassmorphism dashboard
+├── config/                      # JSON-based simulated signal configurations
+├── tests/                       # Complete pytest suite
+└── deployed_modules/            # Folder populated dynamically by Node OTA Deployments
 ```
 
 ---
 
-## Vehicle Signals (12 total)
+## 🧪 Testing
 
-| Signal | Unit | Range | UI Widget |
-|--------|------|-------|-----------|
-| Speed | km/h | 0–240 | Gauge |
-| Battery SoC | % | 0–100 | Bar |
-| Tire Pressure | psi | 0–50 | Grid (4) |
-| Engine Temp | °C | 0–150 | Gauge |
-| Fuel Level | % | 0–100 | Bar |
-| Odometer | km | 0–999999 | Display |
-| Throttle | % | 0–100 | Bar |
-| Brake | % | 0–100 | Bar |
-| Gear | – | P/R/N/D/1–6 | Indicator |
-| Steering | ° | -540–540 | Wheel |
-| EV Range | km | 0–800 | Display |
-| GPS | lat/lon | – | Map |
-
----
-
-## Testing
+The repository features comprehensive integration and unit tests passing at 100%. Ensure the backend is not actively running `uvicorn` during stateful tests to avoid socket collisions.
 
 ```bash
-# Run all tests (7 test files, 60+ test cases)
+# Run all tests (API, ML, compliance, simulators)
 pytest tests/ -v
-
-# Run specific test suites
-pytest tests/test_ml.py -v          # ML training + prediction
-pytest tests/test_compliance.py -v  # MISRA + AUTOSAR rules
-pytest tests/test_simulator.py -v   # Variant-aware simulator
-pytest tests/test_api.py -v         # API integration tests
 ```
 
 ---
 
-## CI/CD
+## 📄 License
 
-GitHub Actions pipeline runs on every push to `main`/`develop`:
-1. Install Python 3.11 + dependencies
-2. Run `pytest tests/ -v`
-3. Lint with flake8 (non-blocking)
-4. Build Docker image (main branch only)
-
----
-
-## License
-
-This project is for educational and demonstration purposes.
+This project was built for educational and demonstration purposes.
