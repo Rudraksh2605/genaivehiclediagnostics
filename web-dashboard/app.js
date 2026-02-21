@@ -225,9 +225,14 @@ function updateAlerts(alerts) {
         return;
     }
 
-    container.innerHTML = alerts.slice().reverse().map(a => `
+    // Remove .slice().reverse() since backend already sends newest first.
+    // This fixes the bug where users had to scroll down to see new alerts.
+    container.innerHTML = alerts.map(a => `
         <div class="alert-item ${a.severity === 'critical' ? 'critical' : ''}">
-            <div class="alert-type">${a.severity.toUpperCase()} — ${a.alert_type.replace(/_/g, ' ')}</div>
+            <div class="alert-type">
+                ${a.severity.toUpperCase()} — ${a.alert_type.replace(/_/g, ' ')}
+                ${a.source === 'OTA' ? '<span class="badge" style="background:#8b5cf6; margin-left: 8px;">OTA Module</span>' : ''}
+            </div>
             <div class="alert-msg">${a.message}</div>
             <div class="alert-time">${new Date(a.timestamp).toLocaleTimeString()}</div>
         </div>

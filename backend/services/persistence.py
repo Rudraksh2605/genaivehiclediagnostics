@@ -63,6 +63,7 @@ class PersistenceManager:
                 CREATE TABLE IF NOT EXISTS alerts (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,
+                    source TEXT DEFAULT 'SYSTEM',
                     alert_type TEXT,
                     severity TEXT,
                     signal TEXT,
@@ -118,10 +119,11 @@ class PersistenceManager:
         try:
             conn.execute("""
                 INSERT INTO alerts 
-                    (timestamp, alert_type, severity, signal, message, value, threshold)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (timestamp, source, alert_type, severity, signal, message, value, threshold)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 alert_data.get("timestamp", datetime.utcnow().isoformat()),
+                alert_data.get("source", "SYSTEM"),
                 alert_data.get("alert_type", ""),
                 alert_data.get("severity", ""),
                 alert_data.get("signal", ""),

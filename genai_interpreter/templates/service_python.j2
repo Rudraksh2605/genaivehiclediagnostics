@@ -80,5 +80,15 @@ def process_telemetry(telemetry_data: dict, store: object) -> None:
     # 1. Add simple analytic rules here that populate the _alerts array 
     # Example:
     # if telemetry_data.get("speed", 0) > 120:
-    #     _alerts.append({"msg": "High speed detected", "ts": telemetry_data["timestamp"]})
+    #     _alerts.append({
+    #         "id": "high_speed_ota",
+    #         "source": "OTA", 
+    #         "alert_type": "speeding",
+    #         "severity": "warning",
+    #         "message": "High speed detected", 
+    #         "signal": "speed",
+    #         "value": telemetry_data.get("speed", 0),
+    #         "threshold": ">120",
+    #         "timestamp": telemetry_data["timestamp"]
+    #     })
     pass
