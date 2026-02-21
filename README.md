@@ -68,6 +68,12 @@ Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 - **Driving Score:** Real-time gamified scoring of braking, accelerating, and efficiency algorithms.
 - **Live Alerts Engine:** Translates anomalous conditions into flashing UI notifications with severity levels, integrating traceability and health analytics.
 
+### 📱 Native Android Diagnostic App
+- Fully native mobile application built with **Kotlin** and **Jetpack Compose**.
+- **Live Telemetry Dashboard:** View real-time vehicle speed, battery DoD, and tire pressures directly from your mobile device.
+- **Mobile GenAI Code Generation:** Submit natural language prompts from your phone to trigger the multi-LLM code generation pipeline.
+- **Real-Time Alerts System:** View and acknowledge active system anomalies and OTA notifications from the centralized backend stream.
+
 ### 💾 Scalable Persistence & Health Analytics
 - SQLite-backed telemetry and alert storage (`data/vehicle_diagnostics.db`).
 - Auto-rehydrates telemetry from disk over long durations so the dashboard trend charts survive server restarts.
