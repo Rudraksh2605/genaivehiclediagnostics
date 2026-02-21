@@ -1,4 +1,5 @@
 # GenAI Vehicle Diagnostics & Health Monitoring
+Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 
 > **AI-Powered Software Defined Vehicle (SDV) diagnostics** — Real-time telemetry, predictive analytics, ML-based predictions, multi-language code generation, MISRA + AUTOSAR compliance checking, OTA simulation, and WebSocket streaming for modern vehicles.
 
