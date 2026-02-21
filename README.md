@@ -1,4 +1,5 @@
 # GenAI Vehicle Diagnostics & Health Monitoring
+Team AaVaRa - Tata Elxsi Teliport Season 3 (Case Study 2)
 
 > **AI-Powered Software Defined Vehicle (SDV) diagnostics** — Real-time telemetry, predictive analytics, ML-based predictions, multi-language code generation, MISRA + AUTOSAR compliance checking, OTA simulation, and WebSocket streaming for modern vehicles.
 
@@ -82,6 +83,9 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 # (Optional) Export LLM API keys for advanced GenAI features
 export GOOGLE_API_KEY="your-gemini-key"
+
+# OR run the fully containerized stack via Docker
+docker-compose up --build
 ```
 
 ### Web Dashboard
