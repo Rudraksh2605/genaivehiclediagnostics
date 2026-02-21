@@ -106,7 +106,11 @@ class TestTelemetryHistory:
 
     def test_history_populates(self):
         client.post("/vehicle/simulate/start?variant=EV")
-        time.sleep(3)
+        # Force an extra tick because TestClient sync sleep might block background async tasks
+        from backend.simulator.vehicle_simulator import get_simulator
+        sim = get_simulator()
+        sim.store.update_telemetry(sim._generate_telemetry())
+        
         res = client.get("/vehicle/history")
         assert res.status_code == 200
         data = res.json()

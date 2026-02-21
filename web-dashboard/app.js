@@ -20,6 +20,11 @@ document.querySelectorAll('.nav-item').forEach(item => {
             ml: 'ML Training', ota: 'OTA Updates'
         };
         document.getElementById('page-title').textContent = titles[tab] || tab;
+
+        // Auto-refresh specific tab data
+        if (tab === 'ota') {
+            if (typeof fetchOTAHistory === 'function') fetchOTAHistory();
+        }
     });
 });
 
@@ -278,6 +283,21 @@ async function generateCode(mode) {
             label.textContent = `Generated: ${gc.language_name}`;
             meta.textContent = `${gc.lines_of_code} lines · ${gc.generation_method} · ${gc.generation_time_ms}ms`;
             output.textContent = gc.code;
+
+            // Add OTA deploy button for single generation
+            const deployBtn = document.createElement('button');
+            deployBtn.className = 'btn btn-primary';
+            deployBtn.style = 'background:linear-gradient(135deg,#06b6d4,#0891b2);font-weight:600; float: right; margin-top: -30px;';
+            deployBtn.innerHTML = '🚀 Deploy via OTA';
+            deployBtn.onclick = () => autoDeployToOTA(gc.code, gc.language, true, 'single-deploy-btn');
+
+            // Remove old button if exists to prevent duplicates
+            const oldBtn = document.getElementById('single-deploy-btn');
+            if (oldBtn) oldBtn.remove();
+
+            deployBtn.id = 'single-deploy-btn';
+            meta.appendChild(deployBtn);
+
         } else if (mode === 'all') {
             label.textContent = `Generated All Languages (${data.total_lines} lines)`;
             meta.textContent = `Total: ${data.total_time_ms}ms`;
@@ -464,12 +484,83 @@ document.getElementById('btn-validate').addEventListener('click', async () => {
         if (finalCode) {
             valCode.style.display = 'block';
             valCode.textContent = finalCode;
+
+            // Show Deploy via OTA button and attach code
+            const deployBtn = document.getElementById('btn-deploy-ota');
+            if (deployBtn) {
+                deployBtn.style.display = 'inline-block';
+                deployBtn.onclick = () => autoDeployToOTA(finalCode, lang, passed, 'btn-deploy-ota');
+            }
         }
     } catch (err) {
         valMeta.textContent = 'Error';
         valResults.innerHTML = `<div class="alert-item critical"><div class="alert-msg">Validation pipeline failed: ${err.message}</div></div>`;
     }
 });
+
+async function autoDeployToOTA(code, lang, passed, buttonId = 'btn-deploy-ota') {
+    if (!passed) {
+        if (!confirm("This code failed validation. Are you sure you want to deploy it?")) {
+            return;
+        }
+    }
+
+    const deployBtn = document.getElementById(buttonId);
+    const originalText = deployBtn ? deployBtn.innerHTML : '🚀 Deploy via OTA';
+    if (deployBtn) {
+        deployBtn.innerHTML = '⏳ Deploying...';
+        deployBtn.disabled = true;
+    }
+
+    try {
+        const payload = {
+            module_name: `ai_module_${Date.now()}`,
+            language: lang,
+            code: code
+        };
+
+        const res = await fetch(`${API_BASE}/ota/deploy`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                update_type: 'code_module',
+                payload: payload,
+                description: `Auto-deployed AI generated ${lang.toUpperCase()} module`
+            }),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            if (deployBtn) {
+                deployBtn.innerHTML = '✅ Deployed v' + data.version;
+                deployBtn.classList.remove('btn-primary');
+                deployBtn.style.background = '#22c55e';
+
+                // Flash success
+                setTimeout(() => {
+                    deployBtn.innerHTML = originalText;
+                    deployBtn.style.background = 'linear-gradient(135deg,#06b6d4,#0891b2)';
+                    deployBtn.disabled = false;
+                }, 3000);
+            } else {
+                alert('Successfully deployed OTA version v' + data.version);
+            }
+        } else {
+            alert('Failed to deploy: ' + (data.error || 'Unknown error'));
+            if (deployBtn) {
+                deployBtn.innerHTML = originalText;
+                deployBtn.disabled = false;
+            }
+        }
+    } catch (err) {
+        alert('Deploy error: ' + err.message);
+        if (deployBtn) {
+            deployBtn.innerHTML = originalText;
+            deployBtn.disabled = false;
+        }
+    }
+}
 
 // ── Build Check (Syntax / Compile) ──────────────────────────────────────────
 document.getElementById('btn-build').addEventListener('click', async () => {

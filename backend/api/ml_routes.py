@@ -79,7 +79,7 @@ async def get_training_status():
 
 # ── Prediction Endpoint ──────────────────────────────────────────────────────
 
-@router.get("/predict")
+@router.post("/predict")
 async def predict_from_current_data():
     """
     Run ML inference on the current vehicle telemetry data.

@@ -1,0 +1,239 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.2, pytest-9.0.2, pluggy-1.6.0 -- C:\users\rudra\appdata\local\programs\python\python312\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics
+plugins: anyio-4.6.2.post1, asyncio-1.3.0, cov-7.0.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 100 items
+
+tests/test_analytics.py::TestHealthAnalyzer::test_normal_tire_pressure_no_alert PASSED [  1%]
+tests/test_analytics.py::TestHealthAnalyzer::test_low_tire_pressure_front_left PASSED [  2%]
+tests/test_analytics.py::TestHealthAnalyzer::test_low_tire_pressure_rear_right PASSED [  3%]
+tests/test_analytics.py::TestHealthAnalyzer::test_multiple_low_tires PASSED [  4%]
+tests/test_analytics.py::TestHealthAnalyzer::test_borderline_tire_pressure PASSED [  5%]
+tests/test_analytics.py::TestHealthAnalyzer::test_no_battery_alert_when_stable PASSED [  6%]
+tests/test_analytics.py::TestHealthAnalyzer::test_battery_rapid_drop_alert PASSED [  7%]
+tests/test_analytics.py::TestHealthAnalyzer::test_no_battery_alert_with_empty_history PASSED [  8%]
+tests/test_analytics.py::TestHealthAnalyzer::test_no_speed_alert_at_normal_speed PASSED [  9%]
+tests/test_analytics.py::TestHealthAnalyzer::test_high_speed_sustained_alert PASSED [ 10%]
+tests/test_analytics.py::TestHealthAnalyzer::test_no_speed_alert_with_intermittent_high PASSED [ 11%]
+tests/test_analytics.py::TestHealthAnalyzer::test_no_speed_alert_with_insufficient_history PASSED [ 12%]
+tests/test_analytics.py::TestHealthAnalyzer::test_multiple_alerts_simultaneously PASSED [ 13%]
+tests/test_api.py::TestRootEndpoints::test_root PASSED                   [ 14%]
+tests/test_api.py::TestRootEndpoints::test_health_check PASSED           [ 15%]
+tests/test_api.py::TestVehicleEndpoints::test_get_speed PASSED           [ 16%]
+tests/test_api.py::TestVehicleEndpoints::test_get_battery PASSED         [ 17%]
+tests/test_api.py::TestVehicleEndpoints::test_get_tire_pressure PASSED   [ 18%]
+tests/test_api.py::TestVehicleEndpoints::test_get_all_telemetry PASSED   [ 19%]
+tests/test_api.py::TestVehicleEndpoints::test_get_alerts_empty PASSED    [ 20%]
+tests/test_api.py::TestVehicleEndpoints::test_get_alerts_with_limit PASSED [ 21%]
+tests/test_api.py::TestSimulationEndpoints::test_get_simulation_status PASSED [ 22%]
+tests/test_api.py::TestSimulationEndpoints::test_start_simulation PASSED [ 23%]
+tests/test_api.py::TestSimulationEndpoints::test_stop_simulation PASSED  [ 24%]
+tests/test_api.py::TestSimulationEndpoints::test_stop_when_not_running PASSED [ 25%]
+tests/test_api.py::TestTraceabilityEndpoints::test_get_traceability_map PASSED [ 26%]
+tests/test_api.py::TestConfigEndpoints::test_get_signal_config PASSED    [ 27%]
+tests/test_api.py::TestConfigEndpoints::test_signal_config_structure PASSED [ 28%]
+tests/test_api.py::TestOpenAPIDoc::test_docs_available PASSED            [ 29%]
+tests/test_api.py::TestOpenAPIDoc::test_openapi_json PASSED              [ 30%]
+tests/test_codegen.py::TestCodeGenerator::test_supported_languages PASSED [ 31%]
+tests/test_codegen.py::TestCodeGenerator::test_generate_python_template PASSED [ 32%]
+tests/test_codegen.py::TestCodeGenerator::test_generate_cpp_template PASSED [ 33%]
+tests/test_codegen.py::TestCodeGenerator::test_generate_kotlin_template PASSED [ 34%]
+tests/test_codegen.py::TestCodeGenerator::test_generate_rust_template PASSED [ 35%]
+tests/test_codegen.py::TestCodeGenerator::test_generate_all_languages PASSED [ 36%]
+tests/test_codegen.py::TestCodeGenerator::test_invalid_language_raises_error PASSED [ 37%]
+tests/test_compliance.py::TestRuleRegistry::test_misra_rules_count PASSED [ 38%]
+tests/test_compliance.py::TestRuleRegistry::test_autosar_rules_count PASSED [ 39%]
+tests/test_compliance.py::TestRuleRegistry::test_total_supported_rules PASSED [ 40%]
+tests/test_compliance.py::TestRuleRegistry::test_rule_structure PASSED   [ 41%]
+tests/test_compliance.py::TestRuleRegistry::test_standards_present PASSED [ 42%]
+tests/test_compliance.py::TestMISRAChecks::test_clean_code_minimal_violations PASSED [ 43%]
+tests/test_compliance.py::TestMISRAChecks::test_unreachable_code_detected PASSED [ 44%]
+tests/test_compliance.py::TestMISRAChecks::test_forbidden_functions_detected PASSED [ 45%]
+tests/test_compliance.py::TestMISRAChecks::test_uninitialized_vars_detected PASSED [ 46%]
+tests/test_compliance.py::TestAUTOSARChecks::test_magic_numbers_detected PASSED [ 47%]
+tests/test_compliance.py::TestAUTOSARChecks::test_raii_violation_detected PASSED [ 48%]
+tests/test_compliance.py::TestAUTOSARChecks::test_malloc_detected PASSED [ 49%]
+tests/test_compliance.py::TestComplianceReport::test_report_fields PASSED [ 50%]
+tests/test_compliance.py::TestComplianceReport::test_total_rules_is_15 PASSED [ 51%]
+tests/test_compliance.py::TestComplianceReport::test_percentage_bounds PASSED [ 52%]
+tests/test_compliance.py::TestComplianceReport::test_aspice_level_format PASSED [ 53%]
+tests/test_compliance.py::TestComplianceReport::test_high_compliance_gets_high_aspice PASSED [ 54%]
+tests/test_compliance.py::TestComplianceReport::test_violation_structure PASSED [ 55%]
+tests/test_interpreter.py::TestRequirementParser::test_extract_speed_signal PASSED [ 56%]
+tests/test_interpreter.py::TestRequirementParser::test_extract_battery_signal PASSED [ 57%]
+tests/test_interpreter.py::TestRequirementParser::test_extract_tire_pressure_signal PASSED [ 58%]
+tests/test_interpreter.py::TestRequirementParser::test_extract_multiple_signals PASSED [ 59%]
+tests/test_interpreter.py::TestRequirementParser::test_extract_signals_case_insensitive PASSED [ 60%]
+tests/test_interpreter.py::TestRequirementParser::test_extract_monitoring_service PASSED [ 61%]
+tests/test_interpreter.py::TestRequirementParser::test_extract_alert_service PASSED [ 62%]
+tests/test_interpreter.py::TestRequirementParser::test_extract_multiple_services PASSED [ 63%]
+tests/test_interpreter.py::TestRequirementParser::test_ui_components_for_speed PASSED [ 64%]
+tests/test_interpreter.py::TestRequirementParser::test_ui_components_for_battery PASSED [ 65%]
+tests/test_interpreter.py::TestRequirementParser::test_ui_components_for_tire PASSED [ 66%]
+tests/test_interpreter.py::TestRequirementParser::test_alerts_for_speed PASSED [ 67%]
+tests/test_interpreter.py::TestRequirementParser::test_alerts_for_battery PASSED [ 68%]
+tests/test_interpreter.py::TestRequirementParser::test_alerts_for_tire PASSED [ 69%]
+tests/test_interpreter.py::TestRequirementParser::test_full_sample_requirement PASSED [ 70%]
+tests/test_interpreter.py::TestRequirementParser::test_empty_requirement PASSED [ 71%]
+tests/test_interpreter.py::TestRequirementParser::test_none_requirement PASSED [ 72%]
+tests/test_interpreter.py::TestRequirementParser::test_no_matching_signals_defaults PASSED [ 73%]
+tests/test_interpreter.py::TestRequirementParser::test_raw_requirement_preserved PASSED [ 74%]
+tests/test_interpreter.py::TestRequirementParser::test_parse_requirement_function PASSED [ 75%]
+tests/test_interpreter.py::TestRequirementParser::test_parse_requirement_json_function PASSED [ 76%]
+tests/test_interpreter.py::TestRequirementParser::test_llm_stub_fallback PASSED [ 77%]
+tests/test_ml.py::TestTrainingDataGeneration::test_generate_training_data_returns_required_keys PASSED [ 78%]
+tests/test_ml.py::TestTrainingDataGeneration::test_battery_data_shape PASSED [ 79%]
+tests/test_ml.py::TestTrainingDataGeneration::test_tire_data_shape PASSED [ 80%]
+tests/test_ml.py::TestTrainingDataGeneration::test_anomaly_data_shape PASSED [ 81%]
+tests/test_ml.py::TestTrainingDataGeneration::test_deterministic_with_seed PASSED [ 82%]
+tests/test_ml.py::TestMLTrainer::test_trainer_initialization PASSED      [ 83%]
+tests/test_ml.py::TestMLTrainer::test_train_all_models PASSED            [ 84%]
+tests/test_ml.py::TestMLPredictor::test_predictor_loads_models PASSED    [ 85%]
+tests/test_ml.py::TestMLPredictor::test_battery_prediction PASSED        [ 86%]
+tests/test_ml.py::TestMLPredictor::test_tire_wear_prediction PASSED      [ 87%]
+tests/test_ml.py::TestMLPredictor::test_anomaly_detection PASSED         [ 88%]
+tests/test_ml.py::TestMLPredictor::test_predict_all PASSED               [ 89%]
+tests/test_simulator.py::TestSimulatorLifecycle::test_start_simulation PASSED [ 90%]
+tests/test_simulator.py::TestSimulatorLifecycle::test_stop_simulation PASSED [ 91%]
+tests/test_simulator.py::TestSimulatorLifecycle::test_simulation_status_changes PASSED [ 92%]
+tests/test_simulator.py::TestVariantBehavior::test_ev_variant PASSED     [ 93%]
+tests/test_simulator.py::TestVariantBehavior::test_ice_variant PASSED    [ 94%]
+tests/test_simulator.py::TestVariantBehavior::test_hybrid_variant PASSED [ 95%]
+tests/test_simulator.py::TestTelemetryBounds::test_speed_within_bounds PASSED [ 96%]
+tests/test_simulator.py::TestTelemetryBounds::test_battery_soc_within_bounds PASSED [ 97%]
+tests/test_simulator.py::TestTelemetryBounds::test_tire_pressure_within_bounds PASSED [ 98%]
+tests/test_simulator.py::TestTelemetryHistory::test_history_populates FAILED [ 99%]
+tests/test_simulator.py::TestTelemetryHistory::test_history_entry_structure PASSED [100%]
+
+================================== FAILURES ===================================
+_________________ TestTelemetryHistory.test_history_populates _________________
+
+self = <tests.test_simulator.TestTelemetryHistory object at 0x000001E9E368C650>
+
+    def test_history_populates(self):
+        client.post("/vehicle/simulate/start?variant=EV")
+        time.sleep(3)
+        res = client.get("/vehicle/history")
+        assert res.status_code == 200
+        data = res.json()
+        # History endpoint returns {"count": N, "history": [...]}
+        assert "history" in data
+        assert isinstance(data["history"], list)
+>       assert len(data["history"]) >= 2
+E       AssertionError: assert 1 >= 2
+E        +  where 1 = len([{'battery_soc': 94.9, 'battery_temp': 25.8, 'brake': 0.0, 'ev_range': 518.7, ...}])
+
+tests\test_simulator.py:116: AssertionError
+============================== warnings summary ===============================
+backend\main.py:140
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\backend\main.py:140: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+..\..\..\..\appdata\local\programs\python\python312\Lib\site-packages\fastapi\applications.py:4579
+..\..\..\..\appdata\local\programs\python\python312\Lib\site-packages\fastapi\applications.py:4579
+  C:\users\rudra\appdata\local\programs\python\python312\Lib\site-packages\fastapi\applications.py:4579: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+backend\main.py:155
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\backend\main.py:155: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_analytics.py: 13 warnings
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:50: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_analytics.py::TestHealthAnalyzer::test_no_battery_alert_when_stable
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:102: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_analytics.py::TestHealthAnalyzer::test_no_battery_alert_when_stable
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:103: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_analytics.py::TestHealthAnalyzer::test_battery_rapid_drop_alert
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:112: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_analytics.py::TestHealthAnalyzer::test_battery_rapid_drop_alert
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:113: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_analytics.py::TestHealthAnalyzer::test_no_speed_alert_at_normal_speed
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:131: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_analytics.py::TestHealthAnalyzer::test_high_speed_sustained_alert
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:141: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_analytics.py::TestHealthAnalyzer::test_no_speed_alert_with_intermittent_high
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:152: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_analytics.py::TestHealthAnalyzer::test_no_speed_alert_with_insufficient_history
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:172: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_analytics.py::TestHealthAnalyzer::test_multiple_alerts_simultaneously
+  C:\Users\rudra\.gemini\antigravity\scratch\genai-vehicle-diagnostics\tests\test_analytics.py:185: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_api.py: 3 warnings
+tests/test_simulator.py: 9 warnings
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\backend\services\data_store.py:86: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=datetime.utcnow().isoformat(),
+
+tests/test_api.py: 2 warnings
+tests/test_simulator.py: 9 warnings
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\backend\simulator\vehicle_simulator.py:97: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    start_time = datetime.utcnow().isoformat()
+
+tests/test_api.py: 2 warnings
+tests/test_simulator.py: 9 warnings
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\backend\simulator\vehicle_simulator.py:321: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=datetime.utcnow().isoformat(),
+
+tests/test_api.py: 2 warnings
+tests/test_simulator.py: 9 warnings
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\backend\services\data_store.py:127: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow().timestamp()
+
+tests/test_api.py: 2 warnings
+tests/test_simulator.py: 9 warnings
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\backend\services\persistence.py:94: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    snapshot.get("timestamp", datetime.utcnow().isoformat()),
+
+tests/test_codegen.py::TestCodeGenerator::test_generate_python_template
+tests/test_codegen.py::TestCodeGenerator::test_generate_cpp_template
+tests/test_codegen.py::TestCodeGenerator::test_generate_kotlin_template
+tests/test_codegen.py::TestCodeGenerator::test_generate_rust_template
+tests/test_codegen.py::TestCodeGenerator::test_generate_all_languages
+tests/test_codegen.py::TestCodeGenerator::test_generate_all_languages
+tests/test_codegen.py::TestCodeGenerator::test_generate_all_languages
+tests/test_codegen.py::TestCodeGenerator::test_generate_all_languages
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\genai_interpreter\code_generator.py:62: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+
+tests/test_codegen.py::TestCodeGenerator::test_generate_all_languages
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\genai_interpreter\code_generator.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+
+tests/test_compliance.py: 13 warnings
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\genai_interpreter\compliance_checker.py:38: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+
+tests/test_simulator.py::TestVariantBehavior::test_ice_variant
+  C:\Users\rudra\OneDrive\Documents\GitHub\genai-vehicle-diagnostics\backend\services\persistence.py:124: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    alert_data.get("timestamp", datetime.utcnow().isoformat()),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_simulator.py::TestTelemetryHistory::test_history_populates
+================= 1 failed, 99 passed, 105 warnings in 21.11s =================

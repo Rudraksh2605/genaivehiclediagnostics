@@ -113,7 +113,32 @@ async def deploy_ota_update(req: OTADeployRequest) -> Dict[str, Any]:
         update_record["applied"] = "Parameters updated in runtime config"
 
     elif req.update_type == "code_module":
-        update_record["applied"] = "Module registered for next diagnostic cycle"
+        try:
+            # The payload will be dict from the UI: { module_name, language, code }
+            import os
+            payload_data = req.payload if isinstance(req.payload, dict) else {}
+            lang = payload_data.get("language", "unknown")
+            code = payload_data.get("code", "")
+            
+            # Simulate deploying to a folder on the "edge" device
+            deploy_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "deployed_modules"
+            )
+            os.makedirs(deploy_dir, exist_ok=True)
+            
+            ext = {"python": ".py", "cpp": ".cpp", "rust": ".rs", "kotlin": ".kt"}.get(lang, ".txt")
+            filename = payload_data.get("module_name", f"module_v{store.ota_version}") + ext
+            filepath = os.path.join(deploy_dir, filename)
+            
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(code)
+                
+            update_record["applied"] = f"Code module deployed to edge node ({lang})"
+            update_record["filename"] = filename
+        except Exception as e:
+            logger.error(f"Failed to save code module: {e}")
+            update_record["applied"] = f"Module registered, but failed to save to disk: {str(e)}"
 
     else:
         update_record["applied"] = "Custom update stored"

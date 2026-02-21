@@ -214,7 +214,10 @@
                     <div id="compliance-results" class="alerts-list"></div>
                 </div>
                 <div class="card" id="validate-output-card" style="display:none">
-                    <div class="card-label" id="validate-output-label">🔄 Iterative Build & Validation Pipeline</div>
+                    <div class="card-label" id="validate-output-label" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>🔄 Iterative Build & Validation Pipeline</span>
+                        <button id="btn-deploy-ota" class="btn btn-primary" style="display:none; background:linear-gradient(135deg,#06b6d4,#0891b2);font-weight:600">🚀 Deploy via OTA</button>
+                    </div>
                     <div class="codegen-meta" id="validate-meta"></div>
                     <div id="validate-results" class="alerts-list"></div>
                     <pre class="code-output" id="validate-code-output"
