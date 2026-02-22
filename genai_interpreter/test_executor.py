@@ -317,16 +317,21 @@ class TestExecutor:
             try:
                 from genai_interpreter.llm_provider import generate_with_fallback
                 response = generate_with_fallback(fix_prompt)
+                
+                # We still want to try to run the tests even if no LLM is available,
+                # maybe they pass anyway (though unlikely if we are here in the fix loop).
+                # But more importantly, the logic below was appending 'skip_no_llm' and breaking
+                # without running the test, leading to the UI showing "Skipped (no LLM)".
                 if response.metrics.provider == "template":
-                    # Template provider can't fix — just note it
                     logger.info("Only template provider available, stopping retries")
                     iterations.append({
                         "iteration": attempt,
                         "action": "skip_no_llm",
                         "message": "No LLM available for iterative fixing (template-only mode)",
-                        "test_result": exec_result,
+                        "test_result": exec_result, # Use previous exec_result
                     })
                     break
+                
                 fixed_code = response.text.strip()
                 # Strip markdown code blocks if present
                 if fixed_code.startswith("```"):
@@ -336,6 +341,19 @@ class TestExecutor:
                         lines = lines[:-1]
                     fixed_code = "\n".join(lines)
                 current_code = fixed_code
+                
+                # Re-run tests with fixed code
+                exec_result = self.execute_tests(current_code, test_code, language)
+
+                iterations.append({
+                    "iteration": attempt,
+                    "action": "iterative_fix",
+                    "source_code": current_code,
+                    "lines_of_code": len(current_code.splitlines()),
+                    "generation_method": "llm:iterative_fix",
+                    "test_result": exec_result,
+                })
+
             except Exception as e:
                 logger.warning(f"LLM fix attempt {attempt} failed: {e}")
                 iterations.append({
@@ -346,17 +364,7 @@ class TestExecutor:
                 })
                 break
 
-            # Re-run tests with fixed code
-            exec_result = self.execute_tests(current_code, test_code, language)
 
-            iterations.append({
-                "iteration": attempt,
-                "action": "iterative_fix",
-                "source_code": current_code,
-                "lines_of_code": len(current_code.splitlines()),
-                "generation_method": "llm:iterative_fix",
-                "test_result": exec_result,
-            })
 
         total_time = (time.perf_counter() - total_start) * 1000
 

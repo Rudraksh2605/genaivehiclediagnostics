@@ -62,12 +62,14 @@ class GeminiProvider(BaseLLMProvider):
     name = "gemini"
 
     def __init__(self) -> None:
-        self._api_key = os.getenv("GOOGLE_API_KEY", "")
-        self._model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         self._client = None
+        self._model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+    def _get_api_key(self) -> str:
+        return os.getenv("GOOGLE_API_KEY", "")
 
     def is_available(self) -> bool:
-        if not self._api_key:
+        if not self._get_api_key():
             return False
         try:
             import google.generativeai  # noqa: F401
@@ -78,7 +80,7 @@ class GeminiProvider(BaseLLMProvider):
     def _get_client(self):
         if self._client is None:
             import google.generativeai as genai
-            genai.configure(api_key=self._api_key)
+            genai.configure(api_key=self._get_api_key())
             self._client = genai.GenerativeModel(self._model_name)
         return self._client
 
@@ -175,11 +177,13 @@ class OpenAIProvider(BaseLLMProvider):
     name = "openai"
 
     def __init__(self) -> None:
-        self._api_key = os.getenv("OPENAI_API_KEY", "")
         self._model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
+    def _get_api_key(self) -> str:
+        return os.getenv("OPENAI_API_KEY", "")
+
     def is_available(self) -> bool:
-        if not self._api_key:
+        if not self._get_api_key():
             return False
         try:
             import openai  # noqa: F401
@@ -189,7 +193,7 @@ class OpenAIProvider(BaseLLMProvider):
 
     def generate(self, prompt: str, **kwargs) -> LLMResponse:
         import openai
-        client = openai.OpenAI(api_key=self._api_key)
+        client = openai.OpenAI(api_key=self._get_api_key())
         start = time.perf_counter()
         try:
             response = client.chat.completions.create(

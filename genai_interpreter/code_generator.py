@@ -25,10 +25,13 @@ logger = logging.getLogger(__name__)
 # ── Supported languages ─────────────────────────────────────────────────────
 
 SUPPORTED_LANGUAGES = {
-    "python":  {"name": "Python / FastAPI",     "ext": ".py",  "template": "service_python.j2"},
-    "cpp":     {"name": "C++ (MISRA-Compliant)","ext": ".cpp", "template": "service_cpp.j2"},
-    "kotlin":  {"name": "Kotlin / Android",     "ext": ".kt",  "template": "service_kotlin.j2"},
-    "rust":    {"name": "Rust",                 "ext": ".rs",  "template": "service_rust.j2"},
+    "python":         {"name": "Python / FastAPI",     "ext": ".py",   "template": "service_python.j2"},
+    "cpp":            {"name": "C++ (MISRA-Compliant)","ext": ".cpp",  "template": "service_cpp.j2"},
+    "kotlin":         {"name": "Kotlin / Android",     "ext": ".kt",   "template": "service_kotlin.j2"},
+    "rust":           {"name": "Rust",                 "ext": ".rs",   "template": "service_rust.j2"},
+    "dockerfile":     {"name": "Dockerfile",           "ext": "",      "template": "service_dockerfile.j2"},
+    "html_widget":    {"name": "HTML/JS Widget",       "ext": ".html", "template": "service_html_widget.j2"},
+    "compose_widget": {"name": "Jetpack Compose",      "ext": ".kt",   "template": "service_compose_widget.j2"},
 }
 
 # Default units for common vehicle signals
@@ -178,6 +181,48 @@ CONSTRAINTS:
 6. NO WHITE SPACE/FORMATTING FLUFF. Keep code concise.
 
 START OUTPUT IMMEDIATELY WITH use statements.""",
+
+    "dockerfile": """You are a DevOps expert. Write a Dockerfile to containerize a Python SoA application that implements the following functionality:
+
+FUNCTIONALITY: {requirement}
+
+CONSTRAINTS:
+1. OUTPUT ONLY DOCKERFILE CONTENT. Do not output any markdown blocks, explanations, or notes.
+2. NO COMMENTS.
+3. Use `python:3.10-slim` as the base image.
+4. Install exactly these dependencies: `fastapi uvicorn pydantic scikit-learn numpy pandas`
+5. Copy a file named `vehicle_health_service.py` to `/app`.
+6. Expose port 8001.
+7. Run `uvicorn vehicle_health_service:app --host 0.0.0.0 --port 8001` as the entrypoint.
+
+START OUTPUT IMMEDIATELY WITH FROM.""",
+
+    "html_widget": """You are a Frontend UI expert. Create an HTML/JS widget snippet (glassmorphism style) for a dashboard to visualize this feature:
+
+FUNCTIONALITY: {requirement}
+
+CONSTRAINTS:
+1. OUTPUT ONLY HTML/CSS/JS. Do not output markdown blocks or explanations.
+2. Start with an outer `<div class="p-4 rounded-xl backdrop-blur-md bg-white/5 border border-white/10 flex flex-col gap-3">`.
+3. Give it a title with an `<h3>`.
+4. Include a canvas or a value display block for visualizing the specific data points mentioned.
+5. Use modern Tailwind classes for styling (we have Tailwind injected).
+6. Provide a tiny `<script>` attached to it to randomly hook or simulate local data updates using `setInterval`.
+
+START OUTPUT IMMEDIATELY WITH THE <div tag.""",
+
+    "compose_widget": """You are an Android Native UI expert. Create a Jetpack Compose widget function to visualize this feature on mobile:
+
+FUNCTIONALITY: {requirement}
+
+CONSTRAINTS:
+1. OUTPUT ONLY KOTLIN CODE. Do not output markdown blocks or explanations.
+2. Create a single `@Composable fun FeatureWidget(...)`
+3. Use standard Material 3 components: `Card`, `Column`, `Row`, `Text`, `CircularProgressIndicator`.
+4. Style the generic card with a dark background and subtle outline.
+5. Do not include excessive imports; just the composable function itself and immediate definitions (like Data classes specifically for the UI state).
+
+START OUTPUT IMMEDIATELY WITH @Composable.""",
 }
 
 
@@ -248,11 +293,19 @@ def generate_code(
                 )
                 method = f"llm:{provider.name}"
                 elapsed = (time.perf_counter() - start) * 1000
+                filename = f"vehicle_health_service{lang_info['ext']}"
+                if language == "dockerfile":
+                    filename = "Dockerfile"
+                elif language == "html_widget":
+                    filename = "widget.html"
+                elif language == "compose_widget":
+                    filename = "Widget.kt"
+
                 return GeneratedCode(
                     language=language,
                     language_name=lang_info["name"],
                     code=code,
-                    filename=f"vehicle_health_service{lang_info['ext']}",
+                    filename=filename,
                     lines_of_code=code.count("\n") + 1,
                     generation_method=method,
                     generation_time_ms=round(elapsed, 1),
@@ -265,11 +318,19 @@ def generate_code(
     code = _generate_from_template(blueprint, language)
     elapsed = (time.perf_counter() - start) * 1000
 
+    filename = f"vehicle_health_service{lang_info['ext']}"
+    if language == "dockerfile":
+        filename = "Dockerfile"
+    elif language == "html_widget":
+        filename = "widget.html"
+    elif language == "compose_widget":
+        filename = "Widget.kt"
+
     return GeneratedCode(
         language=language,
         language_name=lang_info["name"],
         code=code,
-        filename=f"vehicle_health_service{lang_info['ext']}",
+        filename=filename,
         lines_of_code=code.count("\n") + 1,
         generation_method=method,
         generation_time_ms=round(elapsed, 1),
